@@ -52,7 +52,7 @@ const Home = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Store className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">BisonMarket</h1>
+            <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-foreground hover:text-primary transition-colors">Home</Link>
@@ -198,7 +198,7 @@ const Home = () => {
       {/* Footer */}
       <footer className="border-t border-border bg-card py-8 px-4 mt-12">
         <div className="container mx-auto text-center text-muted-foreground">
-          <p>&copy; 2024 BisonMarket. Supporting Howard University Student Entrepreneurs.</p>
+          <p>&copy; 2024 The Yard Exchange. Supporting Howard University Student Entrepreneurs.</p>
         </div>
       </footer>
     </div>
