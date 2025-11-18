@@ -5,11 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { 
-  Store, MapPin, Phone, Mail, MessageCircle, 
+  MapPin, Phone, Mail, MessageCircle, 
   Clock, Star, DollarSign, Calendar, Share2,
   Flag, Heart
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import bisonLogo from "@/assets/bison-logo.png";
 
 const BusinessDetail = () => {
   const business = {
@@ -82,7 +83,7 @@ const BusinessDetail = () => {
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <Store className="h-6 w-6 text-primary" />
+            <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
             <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
