@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, MapPin, Store, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, MapPin, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
+import bisonLogo from "@/assets/bison-logo.png";
 import {
   Select,
   SelectContent,
@@ -97,7 +98,7 @@ const Discover = () => {
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <Store className="h-6 w-6 text-primary" />
+            <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
             <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
