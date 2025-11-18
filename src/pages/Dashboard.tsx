@@ -72,7 +72,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Store className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">BisonMarket</h1>
+            <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-foreground hover:text-primary transition-colors">Home</Link>
