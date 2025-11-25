@@ -1,12 +1,50 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MapPin, TrendingUp, MessageCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import bisonLogo from "@/assets/bison-logo.png";
 
 const Home = () => {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Signed out",
+        description: "You've been successfully signed out."
+      });
+      navigate("/");
+    }
+  };
+
   const featuredBusinesses = [
     {
       id: 1,
@@ -60,9 +98,13 @@ const Home = () => {
             <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
             <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
           </nav>
-          <Link to="/auth">
-            <Button variant="outline">Sign In</Button>
-          </Link>
+          {user ? (
+            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+          ) : (
+            <Link to="/auth">
+              <Button variant="outline">Sign In</Button>
+            </Link>
+          )}
         </div>
       </header>
 
