@@ -60,7 +60,9 @@ const Home = () => {
             <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
             <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
           </nav>
-          <Button variant="outline">Sign In</Button>
+          <Link to="/auth">
+            <Button variant="outline">Sign In</Button>
+          </Link>
         </div>
       </header>
 
