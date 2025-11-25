@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   MapPin, Phone, Mail, MessageCircle, 
   Clock, Star, DollarSign, Calendar, Share2,
-  Flag, Heart, ChevronLeft
+  Flag, Heart, ChevronLeft, LayoutDashboard
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -100,35 +100,43 @@ const BusinessDetail = () => {
 
       {/* Breadcrumb Navigation */}
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate(-1)}
-            className="gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/">Home</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/discover">Discover</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{business.name}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate(-1)}
+              className="gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/">Home</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/discover">Discover</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{business.name}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+          <Link to="/dashboard">
+            <Button className="gap-2">
+              <LayoutDashboard className="h-4 w-4" />
+              Go to Dashboard
+            </Button>
+          </Link>
         </div>
       </div>
 
