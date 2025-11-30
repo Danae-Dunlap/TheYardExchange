@@ -17,16 +17,24 @@ const Home = () => {
   useEffect(() => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/");
+      } else {
+        setUser(session?.user ?? null);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/");
+      } else {
+        setUser(session?.user ?? null);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -94,7 +102,7 @@ const Home = () => {
             <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-foreground hover:text-primary transition-colors">Home</Link>
+            <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
             <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
             <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
           </nav>
