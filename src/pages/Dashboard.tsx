@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +8,55 @@ import {
   Eye, Heart, Star, Calendar, Settings,
   BarChart3, Clock, Lightbulb
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import bisonLogo from "@/assets/bison-logo.png";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import type { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/");
+      } else {
+        setUser(session?.user ?? null);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/");
+      } else {
+        setUser(session?.user ?? null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Signed out successfully",
+      });
+      navigate("/");
+    }
+  };
+
   const stats = [
     { label: "Total Views", value: "1,247", change: "+12%", icon: Eye },
     { label: "Messages", value: "34", change: "+5", icon: MessageCircle },
@@ -71,16 +117,22 @@ const Dashboard = () => {
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/home" className="flex items-center gap-2">
             <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
             <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-foreground hover:text-primary transition-colors">Home</Link>
+            <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
             <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
             <Link to="/dashboard" className="text-primary font-semibold">Dashboard</Link>
           </nav>
-          <Button variant="outline">Sign In</Button>
+          {user ? (
+            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+          ) : (
+            <Button variant="outline" asChild>
+              <Link to="/">Sign In</Link>
+            </Button>
+          )}
         </div>
       </header>
 
