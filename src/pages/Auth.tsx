@@ -27,15 +27,41 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/home");
+        // Check if profile exists
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile) {
+          navigate("/home");
+        } else {
+          navigate("/onboarding");
+        }
       }
     };
     checkSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate("/home");
+        // For new signups, go to onboarding
+        if (event === "SIGNED_IN") {
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("id", session.user.id)
+              .single();
+            
+            if (profile) {
+              navigate("/home");
+            } else {
+              navigate("/onboarding");
+            }
+          }, 0);
+        }
       }
     });
 
@@ -146,7 +172,7 @@ const Auth = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Welcome to Howard Bison Biz</CardTitle>
+            <CardTitle className="text-2xl text-center">Welcome to The Yard Exchange</CardTitle>
             <CardDescription className="text-center">
               Sign in to discover local businesses
             </CardDescription>

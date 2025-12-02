@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, MapPin, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, MapPin, SlidersHorizontal, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import bisonLogo from "@/assets/bison-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   Select,
   SelectContent,
@@ -19,26 +19,39 @@ import {
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate("/");
-      } else {
-        setUser(session?.user ?? null);
+        return;
       }
-    });
+      setUser(session.user);
+
+      // Check if business owner
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      if (roles?.some(r => r.role === "business_owner")) {
+        setIsBusinessOwner(true);
+      }
+    };
+
+    fetchData();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         navigate("/");
       } else {
-        setUser(session?.user ?? null);
+        setUser(session.user);
       }
     });
 
@@ -148,10 +161,20 @@ const Discover = () => {
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
             <Link to="/discover" className="text-primary font-semibold">Discover</Link>
-            <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
+            {isBusinessOwner && (
+              <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
+            )}
+            <Link to="/profile" className="text-foreground hover:text-primary transition-colors">Profile</Link>
           </nav>
           {user ? (
-            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+            <div className="flex items-center gap-2">
+              <Link to="/profile">
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
+            </div>
           ) : (
             <Button variant="outline" asChild>
               <Link to="/">Sign In</Link>
