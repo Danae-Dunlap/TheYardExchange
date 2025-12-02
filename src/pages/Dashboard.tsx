@@ -125,6 +125,7 @@ const Dashboard = () => {
             <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
             <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
             <Link to="/dashboard" className="text-primary font-semibold">Dashboard</Link>
+            <Link to="/profile" className="text-foreground hover:text-primary transition-colors">Profile</Link>
           </nav>
           {user ? (
             <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
