@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { User, Store, ArrowLeft } from "lucide-react";
-import bisonLogo from "@/assets/bison-logo.png";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
+import Header from "@/components/layout/Header";
+import { useAuth } from "@/contexts/AuthContext";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -30,10 +30,9 @@ interface Profile {
   avatar_url: string | null;
 }
 
-const Profile = () => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+const ProfilePage = () => {
+  const { user, isBusinessOwner, loading: authLoading, refreshRoles } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -47,60 +46,33 @@ const Profile = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/");
-        return;
-      }
-      setUser(session.user);
+    if (!authLoading && !user) {
+      navigate("/");
+      return;
+    }
 
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+    if (user) {
+      const fetchProfile = async () => {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
 
-      if (profileData) {
-        setProfile(profileData);
-        setFormData({
-          full_name: profileData.full_name || "",
-          phone: profileData.phone || "",
-          major: profileData.major || "",
-          graduation_year: profileData.graduation_year?.toString() || "",
-          bio: profileData.bio || ""
-        });
-      }
-
-      // Check if business owner
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id);
-
-      if (roles?.some(r => r.role === "business_owner")) {
-        setIsBusinessOwner(true);
-      }
-    };
-
-    fetchData();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/");
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
+        if (profileData) {
+          setProfile(profileData);
+          setFormData({
+            full_name: profileData.full_name || "",
+            phone: profileData.phone || "",
+            major: profileData.major || "",
+            graduation_year: profileData.graduation_year?.toString() || "",
+            bio: profileData.bio || ""
+          });
+        }
+      };
+      fetchProfile();
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -174,7 +146,7 @@ const Profile = () => {
     if (error) {
       if (error.code === "23505") {
         toast({ title: "You're already a business owner!" });
-        setIsBusinessOwner(true);
+        await refreshRoles();
       } else {
         toast({
           title: "Error",
@@ -184,32 +156,19 @@ const Profile = () => {
       }
     } else {
       toast({ title: "You're now a business owner!" });
-      setIsBusinessOwner(true);
+      await refreshRoles();
       navigate("/dashboard");
     }
     setLoading(false);
   };
 
+  if (authLoading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2">
-            <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
-            <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
-            <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
-            {isBusinessOwner && (
-              <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
-            )}
-            <Link to="/profile" className="text-primary font-semibold">Profile</Link>
-          </nav>
-          <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
-        </div>
-      </header>
+      <Header />
 
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <Button variant="ghost" className="mb-6" onClick={() => navigate("/home")}>
@@ -359,4 +318,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default ProfilePage;
