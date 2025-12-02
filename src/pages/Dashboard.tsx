@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,53 +9,18 @@ import {
   BarChart3, Clock, Lightbulb
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import bisonLogo from "@/assets/bison-logo.png";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import type { User } from "@supabase/supabase-js";
+import Header from "@/components/layout/Header";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isBusinessOwner, loading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/");
-      } else {
-        setUser(session?.user ?? null);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate("/");
-      } else {
-        setUser(session?.user ?? null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error signing out",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Signed out successfully",
-      });
+    if (!loading && !user) {
       navigate("/");
     }
-  };
+  }, [user, loading, navigate]);
 
   const stats = [
     { label: "Total Views", value: "1,247", change: "+12%", icon: Eye },
@@ -112,30 +77,13 @@ const Dashboard = () => {
     }
   ];
 
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2">
-            <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
-            <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
-            <Link to="/discover" className="text-foreground hover:text-primary transition-colors">Discover</Link>
-            <Link to="/dashboard" className="text-primary font-semibold">Dashboard</Link>
-            <Link to="/profile" className="text-foreground hover:text-primary transition-colors">Profile</Link>
-          </nav>
-          {user ? (
-            <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
-          ) : (
-            <Button variant="outline" asChild>
-              <Link to="/">Sign In</Link>
-            </Button>
-          )}
-        </div>
-      </header>
+      <Header />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -149,10 +97,8 @@ const Dashboard = () => {
               <Settings className="h-4 w-4" />
               Settings
             </Button>
-            <Button className="gap-2">
-              <Link to="/business/1" className="flex items-center gap-2">
-                View Public Profile
-              </Link>
+            <Button className="gap-2" asChild>
+              <Link to="/business/1">View Public Profile</Link>
             </Button>
           </div>
         </div>

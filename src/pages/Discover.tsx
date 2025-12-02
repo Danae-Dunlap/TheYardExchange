@@ -3,12 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, MapPin, SlidersHorizontal, User } from "lucide-react";
+import { Search, MapPin, SlidersHorizontal } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import bisonLogo from "@/assets/bison-logo.png";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
+import Header from "@/components/layout/Header";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -19,60 +17,14 @@ import {
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/");
-        return;
-      }
-      setUser(session.user);
-
-      // Check if business owner
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id);
-
-      if (roles?.some(r => r.role === "business_owner")) {
-        setIsBusinessOwner(true);
-      }
-    };
-
-    fetchData();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate("/");
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error signing out",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Signed out successfully",
-      });
+    if (!loading && !user) {
       navigate("/");
     }
-  };
+  }, [user, loading, navigate]);
 
   const businesses = [
     {
@@ -149,39 +101,13 @@ const Discover = () => {
     }
   ];
 
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/home" className="flex items-center gap-2">
-            <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
-            <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/home" className="text-foreground hover:text-primary transition-colors">Home</Link>
-            <Link to="/discover" className="text-primary font-semibold">Discover</Link>
-            {isBusinessOwner && (
-              <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link>
-            )}
-            <Link to="/profile" className="text-foreground hover:text-primary transition-colors">Profile</Link>
-          </nav>
-          {user ? (
-            <div className="flex items-center gap-2">
-              <Link to="/profile">
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
-            </div>
-          ) : (
-            <Button variant="outline" asChild>
-              <Link to="/">Sign In</Link>
-            </Button>
-          )}
-        </div>
-      </header>
+      <Header />
 
       <div className="container mx-auto px-4 py-8">
         {/* Search and Filters */}
