@@ -15,6 +15,14 @@ const authSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password must be less than 100 characters" })
 });
 
+const signUpSchema = z.object({
+  email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }).refine(
+    (email) => email.endsWith("@bison.howard.edu"),
+    { message: "Only Howard University students can sign up. Please use your @bison.howard.edu email address." }
+  ),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password must be less than 100 characters" })
+});
+
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -72,7 +80,7 @@ const Auth = () => {
     e.preventDefault();
     
     try {
-      const validatedData = authSchema.parse({ email, password });
+      const validatedData: z.infer<typeof signUpSchema> = signUpSchema.parse({ email, password });
       setLoading(true);
 
       const { error } = await supabase.auth.signUp({
@@ -121,7 +129,7 @@ const Auth = () => {
     e.preventDefault();
     
     try {
-      const validatedData = authSchema.parse({ email, password });
+      const validatedData: z.infer<typeof authSchema> = authSchema.parse({ email, password });
       setLoading(true);
 
       const { error } = await supabase.auth.signInWithPassword({
@@ -129,17 +137,20 @@ const Auth = () => {
         password: validatedData.password,
       });
 
+      
       if (error) {
-        if (error.message.includes("Invalid login credentials")) {
+        const errorMessage = error.message || "An error occurred during sign up";
+        
+        if (errorMessage.includes("already registered")) {
           toast({
-            title: "Error",
-            description: "Invalid email or password. Please try again.",
+            title: "Account exists",
+            description: "This email is already registered. Please sign in instead.",
             variant: "destructive"
           });
         } else {
           toast({
             title: "Error",
-            description: error.message,
+            description: errorMessage,
             variant: "destructive"
           });
         }
