@@ -13,10 +13,13 @@ import type { User } from "@supabase/supabase-js";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
-  phone: z.string().trim().max(20, "Phone must be less than 20 characters").optional().or(z.literal("")),
-  major: z.string().trim().max(100, "Major must be less than 100 characters").optional().or(z.literal("")),
-  graduation_year: z.number().int().min(2000).max(2100).optional().or(z.literal(null)),
-  bio: z.string().trim().max(500, "Bio must be less than 500 characters").optional().or(z.literal(""))
+  username: z.string().trim().max(20, "Username must be less than 20 characters").or(z.literal("")),
+  bio: z.string().trim().max(100, "Bio must be less than 100 characters").optional().or(z.literal("")),
+  avatar_url: z.instanceof(File).optional().refine(file => {
+    if (!file) return true;
+    const validTypes = ["image/png", "image/jpeg"];
+    return validTypes.includes(file.type);
+  }, "Invalid file type. Must be PNG or JPEG.").optional(),
 });
 
 const Onboarding = () => {
@@ -25,10 +28,9 @@ const Onboarding = () => {
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [formData, setFormData] = useState({
     full_name: "",
-    phone: "",
-    major: "",
-    graduation_year: "",
-    bio: ""
+    username: "",
+    bio: "",
+    avatar_url: null as File | null
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -78,10 +80,9 @@ const Onboarding = () => {
     try {
       const validated = profileSchema.parse({
         full_name: formData.full_name,
-        phone: formData.phone || undefined,
-        major: formData.major || undefined,
-        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year) : null,
-        bio: formData.bio || undefined
+        username: formData.username || undefined,
+        bio: formData.bio || undefined,
+        avatar_url: formData.avatar_url || undefined
       });
 
       setLoading(true);
@@ -91,11 +92,11 @@ const Onboarding = () => {
         .from("profiles")
         .insert({
           id: user.id,
+          student_email: user.email,
           full_name: validated.full_name,
-          phone: validated.phone || null,
-          major: validated.major || null,
-          graduation_year: validated.graduation_year || null,
-          bio: validated.bio || null
+          username: validated.username || null,
+          bio: validated.bio || null,
+          avatar_url: validated.avatar_url ? validated.avatar_url.name : null
         });
 
       if (profileError) {
@@ -112,7 +113,7 @@ const Onboarding = () => {
         .from("user_roles")
         .insert({
           user_id: user.id,
-          role: "customer"
+          role: "consumer"
         });
 
       if (roleError) {
@@ -174,38 +175,24 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Username</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  id="username"
+                  type="text"
+                  placeholder="Your username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="major">Major</Label>
-                  <Input
-                    id="major"
-                    placeholder="e.g. Computer Science"
-                    value={formData.major}
-                    onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="graduation_year">Graduation Year</Label>
-                  <Input
-                    id="graduation_year"
-                    type="number"
-                    placeholder="2025"
-                    min="2000"
-                    max="2100"
-                    value={formData.graduation_year}
-                    onChange={(e) => setFormData({ ...formData, graduation_year: e.target.value })}
-                  />
-                </div>
+                
+              <div className="space-y-2">
+                    <Label htmlFor="avatar_url">Profile Picture</Label>
+                    <Input
+                      id="avatar_url"
+                      type="file"
+                      accept="image/png, image/jpeg"
+                      onChange={(e) => setFormData({ ...formData, avatar_url: e.target.files?.[0] || null })}
+                    />
               </div>
 
               <div className="space-y-2">
