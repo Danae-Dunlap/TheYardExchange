@@ -10,96 +10,226 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
       businesses: {
         Row: {
-          address: string | null
           category: string
-          cover_image_url: string | null
+          contact_info: Json | null
           created_at: string
           description: string | null
-          email: string | null
           hours_of_operation: Json | null
           id: string
           logo_url: string | null
+          most_popular_products: string[] | null
           name: string
           owner_id: string
-          phone: string | null
+          price_range: string[] | null
+          reviews: string[] | null
+          tags: string[] | null
           updated_at: string
-          website: string | null
+          user_views: number | null
         }
         Insert: {
-          address?: string | null
           category: string
-          cover_image_url?: string | null
+          contact_info?: Json | null
           created_at?: string
           description?: string | null
-          email?: string | null
           hours_of_operation?: Json | null
           id?: string
           logo_url?: string | null
+          most_popular_products?: string[] | null
           name: string
           owner_id: string
-          phone?: string | null
+          price_range?: string[] | null
+          reviews?: string[] | null
+          tags?: string[] | null
           updated_at?: string
-          website?: string | null
+          user_views?: number | null
         }
         Update: {
-          address?: string | null
           category?: string
-          cover_image_url?: string | null
+          contact_info?: Json | null
           created_at?: string
           description?: string | null
-          email?: string | null
           hours_of_operation?: Json | null
           id?: string
           logo_url?: string | null
+          most_popular_products?: string[] | null
           name?: string
           owner_id?: string
-          phone?: string | null
+          price_range?: string[] | null
+          reviews?: string[] | null
+          tags?: string[] | null
           updated_at?: string
-          website?: string | null
+          user_views?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "businesses_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          business_id: string
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          images: string[] | null
+          price: number
+          product_name: string
+          updated_at: string
+          user_views: number | null
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          price: number
+          product_name: string
+          updated_at?: string
+          user_views?: number | null
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          price?: number
+          product_name?: string
+          updated_at?: string
+          user_views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           avatar_url: string | null
           bio: string | null
+          business_id: string | null
           created_at: string
-          full_name: string | null
-          graduation_year: number | null
+          favorite_businesses: string[] | null
+          favorite_products: string[] | null
+          full_name: string
           id: string
-          major: string | null
-          phone: string | null
+          recently_viewed_businesses: string[] | null
+          reviews: string[] | null
+          student_email: string
           updated_at: string
+          username: string
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          business_id?: string | null
           created_at?: string
-          full_name?: string | null
-          graduation_year?: number | null
+          favorite_businesses?: string[] | null
+          favorite_products?: string[] | null
+          full_name: string
           id: string
-          major?: string | null
-          phone?: string | null
+          recently_viewed_businesses?: string[] | null
+          reviews?: string[] | null
+          student_email: string
           updated_at?: string
+          username?: string
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          business_id?: string | null
           created_at?: string
-          full_name?: string | null
-          graduation_year?: number | null
+          favorite_businesses?: string[] | null
+          favorite_products?: string[] | null
+          full_name?: string
           id?: string
-          major?: string | null
-          phone?: string | null
+          recently_viewed_businesses?: string[] | null
+          reviews?: string[] | null
+          student_email?: string
           updated_at?: string
+          username?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          business_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -127,16 +257,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "business_owner" | "customer"
+      app_role: "owner" | "consumer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -262,9 +386,12 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      app_role: ["business_owner", "customer"],
+      app_role: ["owner", "consumer"],
     },
   },
 } as const

@@ -11,36 +11,29 @@ import { z } from "zod";
 import { User, Store, ArrowLeft } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
+import type { UserProfile } from "@/lib/interfaces";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
-  phone: z.string().trim().max(20, "Phone must be less than 20 characters").optional().or(z.literal("")),
-  major: z.string().trim().max(100, "Major must be less than 100 characters").optional().or(z.literal("")),
-  graduation_year: z.number().int().min(2000).max(2100).optional().or(z.literal(null)),
-  bio: z.string().trim().max(500, "Bio must be less than 500 characters").optional().or(z.literal(""))
+  username: z.string().trim().max(20, "Username must be less than 20 characters"),
+  bio: z.string().trim().max(100, "Create a short bio to introduce yourself to possible buyers!").optional().or(z.literal("")),
+  avatar_url: z.instanceof(File).optional().refine(file => {
+    if (!file) return true;
+    const validTypes = ["image/png", "image/jpeg"];
+    return validTypes.includes(file.type);
+  }, "Invalid file type. Must be PNG or JPEG.")
 });
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  phone: string | null;
-  major: string | null;
-  graduation_year: number | null;
-  bio: string | null;
-  avatar_url: string | null;
-}
 
 const ProfilePage = () => {
   const { user, isBusinessOwner, loading: authLoading, refreshRoles } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
-    phone: "",
-    major: "",
-    graduation_year: "",
-    bio: ""
+    username: "",
+    bio: "",
+    avatar_url: null as File | null,
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -53,20 +46,32 @@ const ProfilePage = () => {
 
     if (user) {
       const fetchProfile = async () => {
-        const { data: profileData } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single();
+        
+        const profileData: UserProfile | null = profile ? {
+          id: profile.id,
+          username: profile.username, 
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          email: profile.student_email,
+          bio: profile.bio,
+          reviews: profile.reviews || [],
+          favorite_businesses: profile.favorite_businesses,
+          recently_viewed_businesses: profile.recently_viewed_businesses,
+          favorite_products: profile.favorite_products || [],
+          } : null;
 
         if (profileData) {
           setProfile(profileData);
           setFormData({
             full_name: profileData.full_name || "",
-            phone: profileData.phone || "",
-            major: profileData.major || "",
-            graduation_year: profileData.graduation_year?.toString() || "",
-            bio: profileData.bio || ""
+            username: profileData.username || "",
+            bio: profileData.bio || "",
+            avatar_url: null as File | null
           });
         }
       };
@@ -80,10 +85,9 @@ const ProfilePage = () => {
     try {
       const validated = profileSchema.parse({
         full_name: formData.full_name,
-        phone: formData.phone || undefined,
-        major: formData.major || undefined,
-        graduation_year: formData.graduation_year ? parseInt(formData.graduation_year) : null,
-        bio: formData.bio || undefined
+        username: formData.username || undefined,
+        bio: formData.bio || undefined,
+        avatar_url: formData.avatar_url || undefined,
       });
 
       setLoading(true);
@@ -92,10 +96,9 @@ const ProfilePage = () => {
         .from("profiles")
         .update({
           full_name: validated.full_name,
-          phone: validated.phone || null,
-          major: validated.major || null,
-          graduation_year: validated.graduation_year || null,
-          bio: validated.bio || null
+          username: validated.username || null,
+          bio: validated.bio || null,
+          avatar_url: validated.avatar_url ? validated.avatar_url.name : null
         })
         .eq("id", user.id);
 
@@ -111,9 +114,8 @@ const ProfilePage = () => {
       setProfile({
         ...profile!,
         full_name: validated.full_name,
-        phone: validated.phone || null,
-        major: validated.major || null,
-        graduation_year: validated.graduation_year || null,
+        username: validated.username || null,
+        avatar_url: validated.avatar_url ? validated.avatar_url.name : null,
         bio: validated.bio || null
       });
 
@@ -138,26 +140,19 @@ const ProfilePage = () => {
     setLoading(true);
     const { error } = await supabase
       .from("user_roles")
-      .insert({
-        user_id: user.id,
-        role: "business_owner"
-      });
+      .update({role: "owner"})
+      .eq("user_id", user.id);
 
-    if (error) {
-      if (error.code === "23505") {
-        toast({ title: "You're already a business owner!" });
-        await refreshRoles();
-      } else {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      }
-    } else {
+    if (!error) {
       toast({ title: "You're now a business owner!" });
       await refreshRoles();
       navigate("/dashboard");
+    } else {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     }
     setLoading(false);
   };
@@ -201,33 +196,23 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="username">Username</Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    id="username"
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="major">Major</Label>
+                    <Label htmlFor="avatar_url">Profile Picture</Label>
                     <Input
-                      id="major"
-                      value={formData.major}
-                      onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="graduation_year">Graduation Year</Label>
-                    <Input
-                      id="graduation_year"
-                      type="number"
-                      min="2000"
-                      max="2100"
-                      value={formData.graduation_year}
-                      onChange={(e) => setFormData({ ...formData, graduation_year: e.target.value })}
+                      id="avatar_url"
+                      type="file"
+                      accept="image/png, image/jpeg"
+                      onChange={(e) => setFormData({ ...formData, avatar_url: e.target.files?.[0] || null })}
                     />
                   </div>
                 </div>
@@ -255,16 +240,12 @@ const ProfilePage = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{profile?.phone || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground">Username</p>
+                    <p className="font-medium">{profile?.username || "Not set"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Major</p>
-                    <p className="font-medium">{profile?.major || "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Graduation Year</p>
-                    <p className="font-medium">{profile?.graduation_year || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground">Profile Picture</p>
+                    <p className="font-medium">{profile?.avatar_url ? "Uploaded" : "Not set"}</p>
                   </div>
                 </div>
                 {profile?.bio && (

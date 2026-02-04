@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .select("role")
       .eq("user_id", userId);
 
-    setIsBusinessOwner(roles?.some(r => r.role === "business_owner") ?? false);
+    setIsBusinessOwner(roles?.some(r => r.role === "owner") ?? false);
   }, []);
 
   const refreshRoles = useCallback(async () => {
