@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery} from "../interfaces";
+
 /**
  * Fetch business data from the database.
  *
@@ -58,6 +59,7 @@ export async function fetchBusiness(filters?: BusinessQuery): Promise<Business[]
  * @param business business data
  */
 export async function insertBusiness(business: Business): Promise<void> {
+    const fileName = `${business.id}/logo/${business.logo_url}`;
     const {error} = await supabase.from('businesses').insert({
         id: business.id,
         name: business.name, 
@@ -65,7 +67,7 @@ export async function insertBusiness(business: Business): Promise<void> {
         owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
-        logo_url: business.logo_url || null,
+        logo_url: fileName || null,
         products: business.products || null,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation || null,
@@ -77,7 +79,10 @@ export async function insertBusiness(business: Business): Promise<void> {
         reviews: business.reviews || null,
     }); 
 
+    const {error: uploadError} = await supabase.storage.from('businesses').upload(fileName, business.logo_url);
+
     if(error){throw new Error(`Error inserting business: ${error.message}`);}
+    if(uploadError){throw new Error(`Error uploading logo: ${uploadError.message}`);}
 }
 
 /**
@@ -86,6 +91,7 @@ export async function insertBusiness(business: Business): Promise<void> {
  * @param business business data
  */
 export async function updateBusiness(business: Business): Promise<void> {
+    
     const {error} = await supabase.from('businesses').update({
         name: business.name, 
         owner_id: business.owner_id,
@@ -104,11 +110,15 @@ export async function updateBusiness(business: Business): Promise<void> {
         reviews: business.reviews || null,
     }).eq('id', business.id);
 
+    const {error: uploadError} = await supabase.storage.from('businesses').upload(business.logo_url, business.logo_url);
+
     if(error){throw new Error(`Error updating business: ${error.message}`);}
+    if(uploadError){throw new Error(`Error uploading logo: ${uploadError.message}`);}
 }
 
 /**
  * Delete a business from the database.
+ * 
  * @param businessId 
  */
 export async function deleteBusiness(businessId: string, user_id: string): Promise<void> {
@@ -117,11 +127,13 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
     const {error: productError} = await supabase.from('products').delete().eq('business_id', businessId);
     const {error: reviewError} = await supabase.from('reviews').delete().eq('business_id', businessId);
     const {error: profileError} = await supabase.from('user_roles').update({'role': 'consumer'}).eq('id', user_id);
+    const {error: imageError} = await supabase.storage.from('businesses').remove([`${businessId}/logo/`]);
 
     if(businessError){throw new Error(`Error deleting business: ${businessError.message}`);}
     if(productError){throw new Error(`Error deleting products: ${productError.message}`);}  
     if(reviewError){throw new Error(`Error deleting reviews: ${reviewError.message}`);}
     if(profileError){throw new Error(`Error updating profile: ${profileError.message}`);}
+    if(imageError){throw new Error(`Error deleting logo: ${imageError.message}`);}
 }
 
 /**
@@ -159,16 +171,18 @@ export async function fetchProducts(product_ids: string[]): Promise<Product[] | 
 
 /**
  * Insert a new product into the database.
+ * 
  * @param product 
  * @throws Error if the insert operation fails.
  */
 export async function insertProduct(product: Product): Promise<void> {
+    const fileName = `${product.id}/image/${product.image}`;
     const {error} = await supabase.from('products').insert({
         id: product.id,
         product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images: product.images || null,
+        images: fileName || null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -177,20 +191,24 @@ export async function insertProduct(product: Product): Promise<void> {
         user_sentiments: product.user_sentiments || null,
     }); 
 
+    const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product?.image); 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
+    if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
 }
 
 /**
  * Update an existing product in the database.
+ * 
  * @param product 
  * @throws Error if the update operation fails.
  */
 export async function updateProduct(product: Product): Promise<void> {
+    const fileName = `${product.id}/image/${product.image}`;
     const {error} = await supabase.from('products').update({
         name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images: product.images || null,
+        images: fileName || null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -199,17 +217,22 @@ export async function updateProduct(product: Product): Promise<void> {
         user_sentiments: product.user_sentiments || null,
     }).eq('id', product.id);
 
+    const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
     if(error){throw new Error(`Error updating product: ${error.message}`);}
+    if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
 }
 
 /**
  * Delete a product from the database.
+ * 
  * @param productId 
  * @throws Error if the delete operation fails.
  */
 export async function deleteProduct(productId: string): Promise<void> {
+    const {error: deleteImageError} = await supabase.storage.from('products').remove([`${productId}/image/`]);
     const {error} = await supabase.from('products').delete().eq('id', productId);
 
+    if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
     if(error){throw new Error(`Error deleting product: ${error.message}`);}
 }
 
@@ -256,11 +279,13 @@ export async function deleteProfile(profileId: string): Promise<void> {
     const {error: reviewsError} = await supabase.from('reviews').delete().eq('user_id', profileId);
     const {error: roleError } = await supabase.from('user_roles').delete().eq('user_id', profileId);
     const {error: profileError} = await supabase.from('profiles').delete().eq('id', profileId);
+    const {error: imageError} = await supabase.storage.from('account_images').remove([`${profileId}/avatar/`]);
 
     if(businessError){throw new Error(`Error deleting business: ${businessError?.message}`);}
     if(reviewsError){throw new Error(`Error deleting reviews: ${reviewsError?.message}`);}
     if(roleError){throw new Error(`Error deleting user roles: ${roleError?.message}`);}
     if(profileError){throw new Error(`Error deleting profile: ${profileError?.message}`);}
+    if(imageError){throw new Error(`Error deleting profile image: ${imageError.message}`);}
 }
 
 /**
@@ -320,5 +345,3 @@ export async function deleteReview(reviewId: string): Promise<void> {
     const {error} = await supabase.from('reviews').delete().eq('id', reviewId);
     if(error){throw new Error(`Error deleting review: ${error.message}`);}
 }
-
-
