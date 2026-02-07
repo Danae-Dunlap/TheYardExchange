@@ -51,7 +51,7 @@ const ProfilePage = () => {
           .select("*")
           .eq("id", user.id)
           .single();
-        
+
         const profileData: UserProfile | null = profile ? {
           id: profile.id,
           username: profile.username, 
@@ -73,8 +73,16 @@ const ProfilePage = () => {
             bio: profileData.bio || "",
             avatar_url: null as File | null
           });
-        }
-      };
+
+        const {data: profilePicture} = await supabase
+        .storage
+        .from("accounts")
+        .getPublicUrl(`${user.id}/avatar/${profile?.avatar_url || ""}`);
+
+        profileData.avatar_url = profilePicture?.publicUrl;
+        
+      };  
+    }
       fetchProfile();
     }
   }, [user, authLoading, navigate]);
@@ -115,11 +123,24 @@ const ProfilePage = () => {
         ...profile!,
         full_name: validated.full_name,
         username: validated.username || null,
-        avatar_url: validated.avatar_url ? validated.avatar_url.name : null,
+        avatar_url: validated.avatar_url ? `${user.id}/avatar/${formData.avatar_url?.name}` : null,
         bio: validated.bio || null
       });
+      const {error: uploadError } = await supabase
+        .storage
+        .from("accounts")
+        .update(`${user.id}/avatar/${formData.avatar_url?.name}`, formData.avatar_url);
 
-      toast({ title: "Profile updated!" });
+      if (uploadError) {
+        toast({
+          title: "Error",
+          description: uploadError.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({ title: "Profile updated!" });
+      }
+
       setEditing(false);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -179,7 +200,7 @@ const ProfilePage = () => {
               </div>
               <div>
                 <CardTitle>{profile?.full_name || "Your Profile"}</CardTitle>
-                <CardDescription>{user?.email}</CardDescription>
+                <CardDescription>{profile?.email}</CardDescription>
               </div>
             </div>
           </CardHeader>
