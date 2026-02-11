@@ -1,7 +1,6 @@
 /**
- * Interfaces for querying and representing data entities.
+ * Interfaces to represent possible search filters for querying databases
  */
-
 export type BusinessQuery = {
     id?: string[] | null;
     name?: string;
@@ -19,6 +18,7 @@ export type ReviewQuery = {
     product_id?: string;
 }
 
+/** Interfaces for representing data entities */
 export type Business = {
     id: string; 
     name: string; 
@@ -56,7 +56,7 @@ export type Product = {
     name: string;
     business_id: string;
     description?: string | null;
-    images?: string[] | null;
+    image?: string | null;
     price: number; 
     rating?: number | null;
     tags?: string[] | null;

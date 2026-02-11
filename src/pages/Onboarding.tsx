@@ -96,8 +96,21 @@ const Onboarding = () => {
           full_name: validated.full_name,
           username: validated.username || null,
           bio: validated.bio || null,
-          avatar_url: validated.avatar_url ? validated.avatar_url.name : null
+          avatar_url: validated.avatar_url ? `${user.id}/avatar/${validated.avatar_url.name}` : null
         });
+
+      //Upload avatar if provided
+      if (validated.avatar_url) {
+        const {error: uploadError } = await supabase
+        .storage
+        .from('accounts')
+        .upload(`${user.id}/avatar/${validated.avatar_url.name}`, validated.avatar_url.name, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+        if (uploadError) {console.error("Avatar upload error:", uploadError);}
+      }
 
       if (profileError) {
         toast({
