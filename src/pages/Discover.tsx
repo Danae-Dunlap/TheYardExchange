@@ -18,9 +18,10 @@ import {
 import { Category, BusinessQuery, SortingFilters, Business } from "@/lib/interfaces";
 import { fetchBusiness } from "@/lib/data/utils";
 import { Oval } from "react-loader-spinner";
+import { homeSearchQuery } from "./Home";
 
 const Discover = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(homeSearchQuery);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
   const [sortingFilter, setSortingFilter] = useState<SortingFilters | null>(null);
   const { user, loading } = useAuth();
@@ -105,13 +106,13 @@ const Discover = () => {
 
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Sort By</Label>
-              <Select defaultValue={SortingFilters.Highest_Rated} onValueChange={(e) => sortBusinesses(e)}>
+              <Select defaultValue={SortingFilters.Highest_Rated}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(SortingFilters).map((filter) => (
-                    <SelectItem key={filter} value={filter.toLowerCase() || ''}>
+                    <SelectItem onClick={() => setSortingFilter(filter)} key={filter} value={filter.toLowerCase() || ''}>
                       {filter}
                     </SelectItem>
                   ))}
@@ -140,7 +141,7 @@ const Discover = () => {
       </div>
 
       {/* Results Header */}
-      <div className="mx-auto px-4 py-8">
+      <div className="mx-auto px-20 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground mb-2">Discover Businesses</h2>
           <p className="text-muted-foreground">{businesses.length} businesses found</p>

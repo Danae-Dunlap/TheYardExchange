@@ -8,9 +8,14 @@ import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 
+export let homeSearchQuery = ""; 
+
 const Home = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const navigateHome = () => {
+    navigate('/discover');
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -83,9 +88,11 @@ const Home = () => {
               <Input 
                 placeholder="Search for businesses, services, products..." 
                 className="pl-10 h-12"
+                onChange={(e) => homeSearchQuery = e.target.value}
+                onKeyDownCapture={(e) => e.key == 'Enter' ? navigateHome() : null}
               />
             </div>
-            <Button size="lg" className="h-12">Search</Button>
+            <Button size="lg" className="h-12" onClick={navigateHome} >Search</Button>
           </div>
 
           <div className="flex flex-wrap justify-center gap-2">
