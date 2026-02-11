@@ -1,6 +1,9 @@
 -- Create enum type for user roles
 CREATE TYPE public.app_role AS ENUM('owner', 'consumer'); 
 
+--Create enum type for business categories
+CREATE TYPE public.business_category AS ENUM('Hair', 'Beauty', 'Clothing', 'Food', 'Entertainment', 'Services', 'Tutoring', 'Creative', 'Tech');
+
 -- Create public tables
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
