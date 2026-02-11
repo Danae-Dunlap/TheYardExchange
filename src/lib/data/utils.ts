@@ -1,30 +1,29 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery} from "../interfaces";
 
-/** UPDATE IMAGES column IN DATABASE */
-
 /**
  * Fetch business data from the database.
  *
  * @param filters - The query parameters to filter businesses.
- * @param search_string - Search term used to look for businesses
+ * @param search_string - The string used to search in business name, description, category, and tags
  * @returns A promise that resolves to an array of business data
  * @throws Error if the fetch operation fails.
  */
 export async function fetchBusiness(filters?: BusinessQuery, search_string?: string): Promise<Business[] | null> {
-    if(!filters && !search_string){throw new Error('Must provide either filters and/or search term')}
-
+    
     let query = supabase.from('businesses').select('*');
 
-    if(search_string){query = query.select().textSearch('find_business', search_string)}
+    if(search_string){query = query.select().textSearch('find_business', search_string);}
 
     //Apply filters based on query parameters
-    if (filters.owner_id) { query = query.eq('owner_id', filters.owner_id); }
-    if (filters.category) { query = query.eq('category', filters.category); }
-    if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); }
-    if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); }
+    if (filters.category) { query = query.eq('category', filters.category);  console.log("Category filter applied:", filters.category);}
+    if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
+    if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
 
     const {data, error} = await query;
+    console.log("Fetch business query: ", query); 
+    console.log("Fetch business data: ", data);
+    console.log("Fetch business error: ", error);
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
     if (!data) {return null;}
 
@@ -59,6 +58,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
  */
 export async function insertBusiness(business: Business): Promise<void> {
     const fileName = `${business.id}/logo/${business.logo_url}`;
+    const priceRange = business.price_range.split('-'); 
     const {error} = await supabase.from('businesses').insert({
         id: business.id,
         name: business.name, 
@@ -66,11 +66,12 @@ export async function insertBusiness(business: Business): Promise<void> {
         owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
-        logo_url: business.logo_url ? `${business.id}/logo_url/${business.logo_url}` : null,
+        logo_url: fileName || null,
         products: business.products || null,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation || null,
         tags: business.tags || null,
+        price_range: priceRange || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,
@@ -89,18 +90,19 @@ export async function insertBusiness(business: Business): Promise<void> {
  * @param business business data
  */
 export async function updateBusiness(business: Business): Promise<void> {
-    
+    const priceRange = business.price_range.split('-'); 
     const {error} = await supabase.from('businesses').update({
         name: business.name, 
         owner_id: business.owner_id,
         owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
-        logo_url: business.logo_url ? `${business.id}/logo_url/${business.logo_url}` : null,
+        logo_url: business.logo_url || null,
         products: business.products || null,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation || null,
         tags: business.tags || null,
+        price_range: priceRange || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,
@@ -114,22 +116,16 @@ export async function updateBusiness(business: Business): Promise<void> {
 }
 
 /**
- * Delete a business from the database.
+ * Delete a business from the database. All related rows are deleted automatically through cascade delete.
  * 
  * @param businessId 
  */
 export async function deleteBusiness(businessId: string, user_id: string): Promise<void> {
 
     const {error: businessError} = await supabase.from('businesses').delete().eq('id', businessId);
-    const {error: productError} = await supabase.from('products').delete().eq('business_id', businessId);
-    const {error: reviewError} = await supabase.from('reviews').delete().eq('business_id', businessId);
-    const {error: profileError} = await supabase.from('user_roles').update({'role': 'consumer'}).eq('id', user_id);
     const {error: imageError} = await supabase.storage.from('businesses').remove([`${businessId}/logo/`]);
 
     if(businessError){throw new Error(`Error deleting business: ${businessError.message}`);}
-    if(productError){throw new Error(`Error deleting products: ${productError.message}`);}  
-    if(reviewError){throw new Error(`Error deleting reviews: ${reviewError.message}`);}
-    if(profileError){throw new Error(`Error updating profile: ${profileError.message}`);}
     if(imageError){throw new Error(`Error deleting logo: ${imageError.message}`);}
 }
 
@@ -179,7 +175,7 @@ export async function insertProduct(product: Product): Promise<void> {
         product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images:  product.images ? `${product.business_id}/images/${product.images}` : null,
+        images:  product.image ? `${product.business_id}/images/${product.image}` : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -205,7 +201,7 @@ export async function updateProduct(product: Product): Promise<void> {
         name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images:  product.images ? `${product.business_id}/images/${product.images}` : null,
+        images:  product.image ? `${product.business_id}/images/${product.image}` : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -292,9 +288,10 @@ export async function deleteProfile(profileId: string): Promise<void> {
  * @returns A promise that resolves to an array of review data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchReview(filters?: ReviewQuery): Promise<Review[] | null> {
+export async function fetchReview(filters: ReviewQuery): Promise<Review[] | null> {
     let query = supabase.from('reviews').select('*');
 
+    if (filters.id) { query = query.eq('id', filters.id); }
     if (filters.user_id) { query = query.eq('user_id', filters.user_id); }
     if (filters.business_id) { query = query.eq('business_id', filters.business_id); }
 

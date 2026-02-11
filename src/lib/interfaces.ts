@@ -2,13 +2,14 @@
  * Interfaces to represent possible search filters for querying databases
  */
 export type BusinessQuery = {
-    owner_id?: string;
     category?: string;
     min_price?: number;
     max_price?: number;
+    tags?: string[];
 }
 
 export type ReviewQuery = {
+    id?: string;
     user_id?: string;
     business_id?: string;
     product_id?: string;
@@ -22,13 +23,13 @@ export type Business = {
     owner_name: string;
     category: string; 
     description?: string | null;
-    logo_url: string | null;
+    logo_url?: string | null;
     products?: string[] | null; //array of product ids
     contact_info?: Record<string, any> | null;
     hours_of_operation?: Record<string, any> | null;
+    rating?: number;
     tags?: string[] | null;
     price_range?: string | null;
-    rating?: number;
     user_views: number;
     most_popular_products: string[];
     user_sentiments: string | null;
@@ -53,7 +54,7 @@ export type Product = {
     name: string;
     business_id: string;
     description?: string | null;
-    images?: string | null;
+    image?: string | null;
     price: number; 
     rating?: number | null;
     tags?: string[] | null;
@@ -72,12 +73,17 @@ export type Review = {
 
 /** Interfaces for choice values used in front end */
 export enum Category {
-    Beauty = "Hair & Beauty", 
+    Default = 'None',
+    Beauty = "Beauty", 
+    Hair = "Hair",
     Clothing = "Clothing", 
-    FoodBeverage = "Food & Beverage",
+    Food = "Food",
     Services = "Services", 
     Tutoring = "Tutoring",
-    Creative = "Creative"
+    Creative = "Creative",
+    Technology = "Tech", 
+    Goods = "Consumer Goods", 
+    Entertainment = "Entertainment"
 }
 
 export enum SortingFilters {
@@ -85,3 +91,4 @@ export enum SortingFilters {
     Price_Low_High = 'Price: Low to High',
     Price_High_Low = 'Price: High to Low'
 }
+

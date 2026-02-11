@@ -1,6 +1,9 @@
 -- Create enum type for user roles
 CREATE TYPE public.app_role AS ENUM('owner', 'consumer'); 
 
+--Create enum type for business categories
+CREATE TYPE public.business_category AS ENUM('Hair', 'Beauty', 'Clothing', 'Food', 'Entertainment', 'Services', 'Tutoring', 'Creative', 'Tech');
+
 -- Create public tables
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -173,9 +176,4 @@ CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON public.products
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
--- Helper function to search feature for businesses
-create function find_business(businesses) returns text as $$
-  select $1.name || ' ' || $1.category || ' ' || $1.description || ' ' || $1.tags;
-$$ language sql immutable;
 
