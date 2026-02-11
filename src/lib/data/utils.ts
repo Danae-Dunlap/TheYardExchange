@@ -1,29 +1,28 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery} from "../interfaces";
 
+/** UPDATE IMAGES column IN DATABASE */
+
 /**
  * Fetch business data from the database.
  *
  * @param filters - The query parameters to filter businesses.
+ * @param search_string - Search term used to look for businesses
  * @returns A promise that resolves to an array of business data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchBusiness(filters?: BusinessQuery): Promise<Business[] | null> {
-    
+export async function fetchBusiness(filters?: BusinessQuery, search_string?: string): Promise<Business[] | null> {
+    if(!filters && !search_string){throw new Error('Must provide either filters and/or search term')}
+
     let query = supabase.from('businesses').select('*');
 
+    if(search_string){query = query.select().textSearch('find_business', search_string)}
+
     //Apply filters based on query parameters
-    if (filters.id) { query = query.in('id', filters.id); }
-    if (filters.name){ query = query.ilike('name', `%${filters.name}%`); }
     if (filters.owner_id) { query = query.eq('owner_id', filters.owner_id); }
     if (filters.category) { query = query.eq('category', filters.category); }
     if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); }
     if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); }
-    if (filters.tags && filters.tags.length > 0) {
-        filters.tags.forEach((tag) => {
-            query = query.contains('tags', [tag]);
-        });
-    }
 
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
@@ -67,12 +66,11 @@ export async function insertBusiness(business: Business): Promise<void> {
         owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
-        logo_url: fileName || null,
+        logo_url: business.logo_url ? `${business.id}/logo_url/${business.logo_url}` : null,
         products: business.products || null,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation || null,
         tags: business.tags || null,
-        price_range: business.price_range || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,
@@ -98,12 +96,11 @@ export async function updateBusiness(business: Business): Promise<void> {
         owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
-        logo_url: business.logo_url || null,
+        logo_url: business.logo_url ? `${business.id}/logo_url/${business.logo_url}` : null,
         products: business.products || null,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation || null,
         tags: business.tags || null,
-        price_range: business.price_range || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,
@@ -182,7 +179,7 @@ export async function insertProduct(product: Product): Promise<void> {
         product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images: fileName || null,
+        images:  product.images ? `${product.business_id}/images/${product.images}` : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -208,7 +205,7 @@ export async function updateProduct(product: Product): Promise<void> {
         name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images: fileName || null,
+        images:  product.images ? `${product.business_id}/images/${product.images}` : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -295,10 +292,9 @@ export async function deleteProfile(profileId: string): Promise<void> {
  * @returns A promise that resolves to an array of review data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchReview(filters: ReviewQuery): Promise<Review[] | null> {
+export async function fetchReview(filters?: ReviewQuery): Promise<Review[] | null> {
     let query = supabase.from('reviews').select('*');
 
-    if (filters.id) { query = query.eq('id', filters.id); }
     if (filters.user_id) { query = query.eq('user_id', filters.user_id); }
     if (filters.business_id) { query = query.eq('business_id', filters.business_id); }
 

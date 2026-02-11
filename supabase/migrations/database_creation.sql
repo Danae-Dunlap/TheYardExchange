@@ -174,3 +174,8 @@ CREATE TRIGGER update_products_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Helper function to search feature for businesses
+create function find_business(businesses) returns text as $$
+  select $1.name || ' ' || $1.category || ' ' || $1.description || ' ' || $1.tags;
+$$ language sql immutable;
+
