@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery} from "../interfaces";
+import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessEvent, ContactInfo} from "../interfaces";
 
 /**
  * Fetch business data from the database.
@@ -16,14 +16,11 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     if(search_string){query = query.select().textSearch('find_business', search_string);}
 
     //Apply filters based on query parameters
-    if (filters.category) { query = query.eq('category', filters.category);  console.log("Category filter applied:", filters.category);}
+    if (filters.category) { query = query.eq('category', filters.category as Category);  console.log("Category filter applied:", filters.category);}
     if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
     if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
 
     const {data, error} = await query;
-    console.log("Fetch business query: ", query); 
-    console.log("Fetch business data: ", data);
-    console.log("Fetch business error: ", error);
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
     if (!data) {return null;}
 
@@ -37,12 +34,13 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             category: business.category,
             description: business.description,
             logo_url: business.logo_url,
-            contact_info: business.contact_info,
-            products: business.products, //create function to get product by ids
+            contact_info: formatContactInfo(JSON.stringify(business.contact_info)),
+            products: await fetchProducts(String(business.id)),
+            price_range: business.price_range.join('-'),
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
             user_views: Number(business.user_views),
-            most_popular_products: business.most_popular_products, // see above
+            most_popular_products: business.most_popular_products || null,
             user_sentiments: business.user_sentiments,
             reviews: business.reviews,
         }
@@ -64,18 +62,16 @@ export async function insertBusiness(business: Business): Promise<void> {
         name: business.name, 
         owner_id: business.owner_id, 
         owner_name: business.owner_name,
-        category: business.category, 
+        category: business.category as Category, 
         description: business.description || null,
         logo_url: fileName || null,
-        products: business.products || null,
         contact_info: business.contact_info || null,
-        hours_of_operation: business.hours_of_operation || null,
+        hours_of_operation: business.hours_of_operation,
         tags: business.tags || null,
+        deal: business.deal || null,
         price_range: priceRange || null,
         user_views: business.user_views,
-        most_popular_products: business.most_popular_products,
-        user_sentiments: business.user_sentiments || null,
-        reviews: business.reviews || null,
+        most_popular_products: business.most_popular_products || null,
     }); 
 
     const {error: uploadError} = await supabase.storage.from('businesses').upload(fileName, business.logo_url);
@@ -98,15 +94,14 @@ export async function updateBusiness(business: Business): Promise<void> {
         category: business.category, 
         description: business.description || null,
         logo_url: business.logo_url || null,
-        products: business.products || null,
+        deal: business.deal || null,
         contact_info: business.contact_info || null,
-        hours_of_operation: business.hours_of_operation || null,
+        hours_of_operation: business.hours_of_operation,
         tags: business.tags || null,
         price_range: priceRange || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,
-        reviews: business.reviews || null,
     }).eq('id', business.id);
 
     const {error: uploadError} = await supabase.storage.from('businesses').upload(business.logo_url, business.logo_url);
@@ -132,12 +127,16 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
 /**
  * Fetch product data from the database.
  *
- * @param product_ids - The array of product IDs to fetch.
+ * @param business - The array of business IDs to fetch products for.
+ * @param product_id - ID value used to fetch most popular products
  * @returns A promise that resolves to an array of product data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchProducts(product_ids: string[]): Promise<Product[] | null> {
-    const {data, error} = await supabase.from('products').select('*').in('id', product_ids);
+export async function fetchProducts(business_id?: string, product_id?: string): Promise<Product[] | null> {
+    let query = supabase.from('products').select('*').eq('business_id', business_id);
+
+    if(product_id) {query = query.eq('id', product_id);}
+    const {data, error} = await query;
 
     if (error) {throw new Error(`Error fetching products: ${error.message}`);}
     if(!data) {return null;}
@@ -146,13 +145,15 @@ export async function fetchProducts(product_ids: string[]): Promise<Product[] | 
     const products: Promise<Product[] | null> = Promise.all(data.map(async (product: any) => {
         return{
             id: product.id,
-            name: product.name,
+            name: product.product_name,
             business_id: product.business_id,
             description: product.description,
             images: product.images,
             price: Number(product.price),
             rating: product.rating ? Number(product.rating) : null,
             tags: product.tags,
+            is_service: product.is_service,
+            duration: product.duration,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
             user_sentiments: product.user_sentiments || null,
@@ -337,4 +338,42 @@ export async function insertReview(review: Review): Promise<void> {
 export async function deleteReview(reviewId: string): Promise<void> {
     const {error} = await supabase.from('reviews').delete().eq('id', reviewId);
     if(error){throw new Error(`Error deleting review: ${error.message}`);}
+}
+
+/**
+ * Fetches a businesses' event from the database.
+ * 
+ * @param business_id used to find events
+ * @returns a list of events tied to the business
+ */
+export async function fetchEvents(business_id: string): Promise<BusinessEvent[] | null> {
+    const {data, error} = await supabase.from('events').select('*').eq('business_id', business_id);
+    if(error){throw new Error(`Error fetching events: ${error.message}`);}
+    
+    const events = data.map((event: any) => {
+        return{
+            id: event.id,
+            business_id: event.business_id,
+            title: event.title,
+            description: event.description, 
+            start_date: event.start_date,
+            end_date: event.end_date,
+        }
+    });
+
+    return events;
+}
+
+function formatContactInfo(contact_info: string): ContactInfo {
+    const contacts = JSON.parse(contact_info)
+    const business_contacts: ContactInfo = {
+        email: contacts.email, 
+        tiktok: contacts.tiktok,
+        instagram: contacts.instagram,
+        phone_number: contacts.phone_number,
+        website: contacts.website,
+        facebook: contacts.facebook,
+    }
+
+    return business_contacts; 
 }

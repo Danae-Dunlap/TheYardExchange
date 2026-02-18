@@ -159,7 +159,7 @@ const Discover = () => {
 
           <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {businesses.map((business) => (
-              <Link key={business.id} to={`/business/${business.id}`}>
+              <Link key={business.id} to={`/business/${business.id}`} state={{ business }}>
                 <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
                   <div className="relative h-48 overflow-hidden">
                     <img
@@ -182,7 +182,9 @@ const Discover = () => {
                       <div className="flex items-center gap-2">
                         <span>{business.price_range}</span>
                         <span>•</span>
+                        {/* Replace with rating
                         <span>{business.reviews} reviews</span>
+                        */}
                       </div>
                     </div>
                   </CardContent>

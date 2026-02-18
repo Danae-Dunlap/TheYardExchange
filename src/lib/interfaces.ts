@@ -21,19 +21,20 @@ export type Business = {
     name: string; 
     owner_id: string; 
     owner_name: string;
-    category: string; 
+    category: Category; 
     description?: string | null;
     logo_url?: string | null;
-    products?: string[] | null; //array of product ids
-    contact_info?: Record<string, any> | null;
-    hours_of_operation?: Record<string, any> | null;
+    products?: Product[] | null;
+    location?: string;
+    contact_info?: ContactInfo;
+    hours_of_operation: string;
+    deal?: string;
     rating?: number;
     tags?: string[] | null;
     price_range?: string | null;
     user_views: number;
     most_popular_products: string[];
     user_sentiments: string | null;
-    reviews: string[] | null;
 }
    
 export type UserProfile = {
@@ -53,6 +54,8 @@ export type Product = {
     id: string;
     name: string;
     business_id: string;
+    is_service: boolean;
+    duration: string;
     description?: string | null;
     image?: string | null;
     price: number; 
@@ -66,9 +69,30 @@ export type Product = {
 export type Review = {
     id: string;
     user_id: string;
+    user: string;
+    user_logo: string;
     business_id: string;
+    date: string;
     rating: number;
     comment?: string | null;
+}
+
+export type BusinessEvent = {
+    id: string;
+    business_id: string;
+    title: string;
+    description?: string | null;
+    start_date: Date;
+    end_date: Date;
+}
+
+export type ContactInfo = {
+    email?: string, 
+    tiktok?: string, 
+    instagram?: string, 
+    phone_number?: string, 
+    website?: string,
+    facebook?: string,
 }
 
 /** Interfaces for choice values used in front end */
@@ -85,6 +109,7 @@ export enum Category {
     Goods = "Consumer Goods", 
     Entertainment = "Entertainment"
 }
+
 
 export enum SortingFilters {
     Highest_Rated = 'Highest Rated',

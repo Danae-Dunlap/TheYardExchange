@@ -177,3 +177,26 @@ CREATE TRIGGER update_products_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+
+-- Events policies
+CREATE POLICY "Everyone can view events"
+  ON public.events FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Business owners can insert events for their business"
+  ON public.events FOR INSERT
+  TO authenticated 
+  WITH CHECK ((select auth.uid()) = (SELECT owner_id FROM public.businesses WHERE id = business_id));
+
+CREATE POLICY "Business owners can update their own events"
+  ON public.events FOR update
+  TO authenticated
+  USING ((select auth.uid()) = (SELECT owner_id FROM public.businesses WHERE id = business_id));
+
+CREATE POLICY "Business owners can delete their own events"
+  ON public.events FOR DELETE
+  TO authenticated
+  USING ((select auth.uid()) = (SELECT owner_id FROM public.businesses WHERE id = business_id));
