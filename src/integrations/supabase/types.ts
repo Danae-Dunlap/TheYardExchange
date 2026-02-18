@@ -41,52 +41,56 @@ export type Database = {
     Tables: {
       businesses: {
         Row: {
-          category: string
+          category: Database["public"]["Enums"]["business_category"]
           contact_info: Json | null
           created_at: string
+          deal: string | null
           description: string | null
-          hours_of_operation: Json | null
+          hours_of_operation: string
           id: string
+          location: string | null
           logo_url: string | null
           most_popular_products: string[] | null
           name: string
           owner_id: string
           price_range: string[] | null
-          reviews: string[] | null
           tags: string[] | null
           updated_at: string
           user_views: number | null
+          find_business: string | null
         }
         Insert: {
-          category: string
+          category: Database["public"]["Enums"]["business_category"]
           contact_info?: Json | null
           created_at?: string
+          deal?: string | null
           description?: string | null
-          hours_of_operation?: Json | null
+          hours_of_operation?: string
           id?: string
+          location?: string | null
           logo_url?: string | null
           most_popular_products?: string[] | null
           name: string
           owner_id: string
           price_range?: string[] | null
-          reviews?: string[] | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
         }
         Update: {
-          category?: string
+          category?: Database["public"]["Enums"]["business_category"]
           contact_info?: Json | null
           created_at?: string
+          deal?: string | null
           description?: string | null
-          hours_of_operation?: Json | null
+          hours_of_operation?: string
           id?: string
+          location?: string | null
           logo_url?: string | null
           most_popular_products?: string[] | null
           name?: string
           owner_id?: string
           price_range?: string[] | null
-          reviews?: string[] | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
@@ -101,14 +105,64 @@ export type Database = {
           },
         ]
       }
+      events: {
+        Row: {
+          business_id: string | null
+          created_at: string
+          description: string
+          end_date: string
+          id: string
+          start_date: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string
+          description: string
+          end_date: string
+          id?: string
+          start_date: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string
+          description?: string
+          end_date?: string
+          id?: string
+          start_date?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           business_id: string
           category: string | null
           created_at: string
           description: string | null
+          duration: string | null
           id: string
           images: string | null
+          is_service: boolean
           price: number
           product_name: string
           updated_at: string
@@ -119,8 +173,10 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          duration?: string | null
           id?: string
           images?: string | null
+          is_service?: boolean
           price: number
           product_name: string
           updated_at?: string
@@ -131,8 +187,10 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          duration?: string | null
           id?: string
           images?: string | null
+          is_service?: boolean
           price?: number
           product_name?: string
           updated_at?: string
@@ -202,24 +260,30 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          is_anon: boolean
           rating: number
           user_id: string
+          username: string
         }
         Insert: {
           business_id: string
           comment?: string | null
           created_at?: string
           id?: string
+          is_anon?: boolean
           rating: number
           user_id: string
+          username?: string
         }
         Update: {
           business_id?: string
           comment?: string | null
           created_at?: string
           id?: string
+          is_anon?: boolean
           rating?: number
           user_id?: string
+          username?: string
         }
         Relationships: [
           {
@@ -257,10 +321,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      find_business: {
+        Args: { "": Database["public"]["Tables"]["businesses"]["Row"] }
+        Returns: {
+          error: true
+        } & "the function public.find_business with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache"
+      }
     }
     Enums: {
       app_role: "owner" | "consumer"
+      business_category:
+        | "Hair"
+        | "Beauty"
+        | "Clothing"
+        | "Food"
+        | "Entertainment"
+        | "Services"
+        | "Tutoring"
+        | "Creative"
+        | "Tech"
+        | "Consumer Goods"
+        | "None"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -392,6 +473,18 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "consumer"],
+      business_category: [
+        "Hair",
+        "Beauty",
+        "Clothing",
+        "Food",
+        "Entertainment",
+        "Services",
+        "Tutoring",
+        "Creative",
+        "Tech",
+        "Consumer Goods",
+      ],
     },
   },
 } as const
