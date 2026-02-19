@@ -152,6 +152,28 @@ CREATE POLICY "Users can delete their own reviews"
   TO authenticated
   USING ((select auth.uid()) = user_id);
 
+-- User roles policies
+CREATE POLICY "Users can view all roles"
+  ON public.user_roles FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Users can insert their own roles"
+  ON public.user_roles FOR INSERT
+  TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can update their own roles"
+  ON public.user_roles FOR UPDATE
+  TO authenticated
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete their own roles"
+  ON public.user_roles FOR DELETE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
 -- Create function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -200,3 +222,26 @@ CREATE POLICY "Business owners can delete their own events"
   ON public.events FOR DELETE
   TO authenticated
   USING ((select auth.uid()) = (SELECT owner_id FROM public.businesses WHERE id = business_id));
+
+-- Storage: allow authenticated users to upload business logos
+CREATE POLICY "Authenticated users can upload business logos"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'businesses');
+
+-- Storage: allow public read of business logos (for display)
+CREATE POLICY "Business logos are publicly readable"
+  ON storage.objects FOR SELECT
+  TO public
+  USING (bucket_id = 'businesses');
+
+-- Storage: allow authenticated users to update their uploads in businesses bucket
+CREATE POLICY "Authenticated users can update business logos"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (bucket_id = 'businesses');
+
+CREATE POLICY "Authenticated users can delete business logos"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'businesses');

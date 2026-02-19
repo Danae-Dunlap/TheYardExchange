@@ -26,20 +26,38 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
 
     //Format data to match Business interface
     const businesses: Promise<Business[] | null> = Promise.all(data.map(async (business: any) => {
+        // Get owner name from profile
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', business.owner_id)
+            .single();
+        
+        const ownerName = profile?.full_name || 'Unknown';
+        
+        // Get logo URL if it exists
+        let logoUrl = business.logo_url;
+        if (logoUrl && !logoUrl.startsWith('http')) {
+            const { data: logoData } = await supabase.storage
+                .from('businesses')
+                .getPublicUrl(logoUrl);
+            logoUrl = logoData?.publicUrl || logoUrl;
+        }
+        
         return {
             id: business.id,
             name: business.name,
             owner_id: business.owner_id,
-            owner_name: business.owner_name,
+            owner_name: ownerName,
             category: business.category,
             description: business.description,
-            logo_url: business.logo_url,
-            contact_info: formatContactInfo(JSON.stringify(business.contact_info)),
+            logo_url: logoUrl,
+            contact_info: business.contact_info ? (business.contact_info as ContactInfo) : undefined,
             products: await fetchProducts(String(business.id)),
-            price_range: business.price_range.join('-'),
+            price_range: business.price_range && Array.isArray(business.price_range) ? business.price_range.join('-') : business.price_range || '',
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
-            user_views: Number(business.user_views),
+            user_views: Number(business.user_views || 0),
             most_popular_products: business.most_popular_products || null,
             user_sentiments: business.user_sentiments,
             reviews: business.reviews,
@@ -55,29 +73,38 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
  * @param business business data
  */
 export async function insertBusiness(business: Business): Promise<void> {
-    const fileName = `${business.id}/logo/${business.logo_url}`;
-    const priceRange = business.price_range.split('-'); 
+    const priceRange = business.price_range ? business.price_range.split('-') : null;
+    
+    // Handle logo upload if provided
+    let logoUrl = null;
+    if (business.logo_url) {
+        // If logo_url is already a URL (from storage), use it directly
+        // Otherwise, it's a file name and we need to construct the path
+        if (business.logo_url.startsWith('http')) {
+            logoUrl = business.logo_url;
+        } else {
+            const fileName = `${business.id}/logo/${business.logo_url}`;
+            logoUrl = fileName;
+        }
+    }
+    
     const {error} = await supabase.from('businesses').insert({
         id: business.id,
         name: business.name, 
-        owner_id: business.owner_id, 
-        owner_name: business.owner_name,
+        owner_id: business.owner_id,
         category: business.category as Category, 
         description: business.description || null,
-        logo_url: fileName || null,
+        logo_url: logoUrl,
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation,
         tags: business.tags || null,
         deal: business.deal || null,
         price_range: priceRange || null,
-        user_views: business.user_views,
+        user_views: business.user_views || 0,
         most_popular_products: business.most_popular_products || null,
     }); 
 
-    const {error: uploadError} = await supabase.storage.from('businesses').upload(fileName, business.logo_url);
-
     if(error){throw new Error(`Error inserting business: ${error.message}`);}
-    if(uploadError){throw new Error(`Error uploading logo: ${uploadError.message}`);}
 }
 
 /**
@@ -86,11 +113,10 @@ export async function insertBusiness(business: Business): Promise<void> {
  * @param business business data
  */
 export async function updateBusiness(business: Business): Promise<void> {
-    const priceRange = business.price_range.split('-'); 
+    const priceRange = business.price_range ? business.price_range.split('-') : null;
     const {error} = await supabase.from('businesses').update({
         name: business.name, 
         owner_id: business.owner_id,
-        owner_name: business.owner_name,
         category: business.category, 
         description: business.description || null,
         logo_url: business.logo_url || null,
@@ -104,10 +130,61 @@ export async function updateBusiness(business: Business): Promise<void> {
         user_sentiments: business.user_sentiments || null,
     }).eq('id', business.id);
 
-    const {error: uploadError} = await supabase.storage.from('businesses').upload(business.logo_url, business.logo_url);
-
     if(error){throw new Error(`Error updating business: ${error.message}`);}
-    if(uploadError){throw new Error(`Error uploading logo: ${uploadError.message}`);}
+}
+
+/**
+ * Fetch business by owner ID
+ * 
+ * @param ownerId - The owner's user ID
+ * @returns A promise that resolves to business data or null
+ */
+export async function fetchBusinessByOwner(ownerId: string): Promise<Business | null> {
+    const {data, error} = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', ownerId)
+        .maybeSingle();
+
+    if (error) {throw new Error(`Error fetching business: ${error.message}`);}
+    if (!data) {return null;}
+
+    // Get owner name from profile
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', ownerId)
+        .single();
+    
+    const ownerName = profile?.full_name || 'Unknown';
+    
+    // Get logo URL if it exists
+    let logoUrl = data.logo_url;
+    if (logoUrl && !logoUrl.startsWith('http')) {
+        const { data: logoData } = await supabase.storage
+            .from('businesses')
+            .getPublicUrl(logoUrl);
+        logoUrl = logoData?.publicUrl || logoUrl;
+    }
+
+    return {
+        id: data.id,
+        name: data.name,
+        owner_id: data.owner_id,
+        owner_name: ownerName,
+        category: data.category,
+        description: data.description,
+        logo_url: logoUrl,
+        contact_info: data.contact_info ? (data.contact_info as ContactInfo) : undefined,
+        products: await fetchProducts(String(data.id)),
+        price_range: data.price_range && Array.isArray(data.price_range) ? data.price_range.join('-') : data.price_range || '',
+        hours_of_operation: data.hours_of_operation,
+        tags: data.tags,
+        user_views: Number(data.user_views || 0),
+        most_popular_products: data.most_popular_products || null,
+        user_sentiments: data.user_sentiments,
+        reviews: data.reviews,
+    };
 }
 
 /**
@@ -166,28 +243,56 @@ export async function fetchProducts(business_id?: string, product_id?: string): 
 /**
  * Insert a new product into the database.
  * 
- * @param product 
+ * @param product Product data
+ * @param imageFile Optional image file to upload
  * @throws Error if the insert operation fails.
  */
-export async function insertProduct(product: Product): Promise<void> {
-    const fileName = `${product.id}/image/${product.image}`;
+export async function insertProduct(product: Product, imageFile?: File): Promise<void> {
+    let imagePath = null;
+    
+    // Upload image if provided
+    if (imageFile) {
+        const fileName = `${product.id}/image/${imageFile.name}`;
+        const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(fileName, imageFile, {
+                cacheControl: '3600',
+                upsert: false,
+            });
+        
+        if (uploadError) {
+            throw new Error(`Error uploading product image: ${uploadError.message}`);
+        }
+        
+        // Get public URL
+        const { data: imageData } = await supabase.storage
+            .from('products')
+            .getPublicUrl(fileName);
+        
+        imagePath = imageData?.publicUrl || fileName;
+    } else if (product.image) {
+        // If image is already a URL, use it
+        imagePath = product.image;
+    }
+    
     const {error} = await supabase.from('products').insert({
         id: product.id,
         product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images:  product.image ? `${product.business_id}/images/${product.image}` : null,
+        images: imagePath ? [imagePath] : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
         reviews: product.reviews || null,
-        user_views: product.user_views,
+        user_views: product.user_views || 0,
         user_sentiments: product.user_sentiments || null,
+        is_service: product.is_service || false,
+        duration: product.duration || null,
+        category: product.tags?.[0] || null, // Use first tag as category if available
     }); 
 
-    const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product?.image); 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
-    if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
 }
 
 /**
@@ -356,24 +461,76 @@ export async function fetchEvents(business_id: string): Promise<BusinessEvent[] 
             business_id: event.business_id,
             title: event.title,
             description: event.description, 
-            start_date: event.start_date,
-            end_date: event.end_date,
+            start_date: new Date(event.start_date),
+            end_date: new Date(event.end_date),
         }
     });
 
     return events;
 }
 
-function formatContactInfo(contact_info: string): ContactInfo {
-    const contacts = JSON.parse(contact_info)
-    const business_contacts: ContactInfo = {
-        email: contacts.email, 
-        tiktok: contacts.tiktok,
-        instagram: contacts.instagram,
-        phone_number: contacts.phone_number,
-        website: contacts.website,
-        facebook: contacts.facebook,
-    }
+/**
+ * Inserts a new event into the database.
+ * 
+ * @param event event data
+ * @throws Error if the insert operation fails.
+ */
+export async function insertEvent(event: BusinessEvent): Promise<void> {
+    const {error} = await supabase.from('events').insert({
+        id: event.id,
+        business_id: event.business_id,
+        title: event.title,
+        description: event.description || null,
+        start_date: event.start_date.toISOString(),
+        end_date: event.end_date.toISOString(),
+    }); 
+    if(error){throw new Error(`Error inserting event: ${error.message}`);}
+}
 
-    return business_contacts; 
+/**
+ * Updates an existing event in the database.
+ * 
+ * @param event event data
+ * @throws Error if the update operation fails.
+ */
+export async function updateEvent(event: BusinessEvent): Promise<void> {
+    const {error} = await supabase.from('events').update({
+        title: event.title,
+        description: event.description || null,
+        start_date: event.start_date.toISOString(),
+        end_date: event.end_date.toISOString(),
+    }).eq('id', event.id);
+    if(error){throw new Error(`Error updating event: ${error.message}`);}
+}
+
+/**
+ * Deletes an event from the database.
+ * 
+ * @param eventId 
+ * @throws Error if the delete operation fails.
+ */
+export async function deleteEvent(eventId: string): Promise<void> {
+    const {error} = await supabase.from('events').delete().eq('id', eventId);
+    if(error){throw new Error(`Error deleting event: ${error.message}`);}
+}
+
+function formatContactInfo(contact_info: string): ContactInfo {
+    if (!contact_info) {
+        return {};
+    }
+    try {
+        const contacts = typeof contact_info === 'string' ? JSON.parse(contact_info) : contact_info;
+        const business_contacts: ContactInfo = {
+            email: contacts.email, 
+            tiktok: contacts.tiktok,
+            instagram: contacts.instagram,
+            phone_number: contacts.phone_number,
+            website: contacts.website,
+            facebook: contacts.facebook,
+        }
+        return business_contacts;
+    } catch (error) {
+        console.error("Error parsing contact info:", error);
+        return {};
+    }
 }
