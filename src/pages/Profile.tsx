@@ -159,15 +159,46 @@ const ProfilePage = () => {
     if (!user) return;
 
     setLoading(true);
-    const { error } = await supabase
+    
+    // Check if user already has a role entry
+    const { data: existingRole } = await supabase
       .from("user_roles")
-      .update({role: "owner"})
-      .eq("user_id", user.id);
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    let error;
+    if (existingRole) {
+      // Update existing role
+      const result = await supabase
+        .from("user_roles")
+        .update({role: "owner"})
+        .eq("user_id", user.id);
+      error = result.error;
+    } else {
+      // Insert new role
+      const result = await supabase
+        .from("user_roles")
+        .insert({user_id: user.id, role: "owner"});
+      error = result.error;
+    }
 
     if (!error) {
-      toast({ title: "You're now a business owner!" });
       await refreshRoles();
-      navigate("/dashboard");
+      // Check if user already has a business
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      if (business) {
+        toast({ title: "You're now a business owner!" });
+        navigate("/dashboard");
+      } else {
+        toast({ title: "Let's set up your business!" });
+        navigate("/create-business");
+      }
     } else {
       toast({
         title: "Error",
@@ -308,9 +339,14 @@ const ProfilePage = () => {
                   <h3 className="font-semibold">Business Owner</h3>
                   <p className="text-sm text-muted-foreground">Manage your business listing</p>
                 </div>
-                <Button asChild>
-                  <Link to="/dashboard">Go to Dashboard</Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" asChild>
+                    <Link to="/create-business">Create Business</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link to="/dashboard">Go to Dashboard</Link>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
