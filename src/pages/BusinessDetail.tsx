@@ -13,32 +13,59 @@ import { fetchProducts, fetchReview, fetchEvents } from "@/lib/data/utils";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Business, Product, Review, BusinessEvent } from "@/lib/interfaces";
-import { Product as ProductComponent } from "@/components/layout/Product";
-import ReviewComponent from "@/components/layout/Review";
-import { Event as EventComponent } from "@/components/layout/Event";
-import ContactInfo from "@/components/layout/ContactInfo";
+import { Product as ProductComponent } from "@/components/business/Product";
+import ReviewComponent from "@/components/business/Review";
+import { Event as EventComponent } from "@/components/business/Event";
+import ContactInfo from "@/components/business/ContactInfo";
+import { supabase } from "@/integrations/supabase/client";
 
 const BusinessDetail = () => {
   const location = useLocation();
-  const { user } = useAuth();
-  const { business } = location.state as { business: Business };
+  const {user, profile} = useAuth();
+  const {business} = location.state as { business: Business };
   const [services, setServices] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [isFavorite, setIsFavorite] = useState(profile?.favorite_businesses.includes(business.id) || false);
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
 
   useEffect(() => {
     const getBusinessDetails = async () => {
-      const business_id = business.id;
-      const services = await fetchProducts(String(business_id));
+      const services = await fetchProducts(business.id);
       setServices(services);
       const reviews = await fetchReview({ business_id: business.id });
       setReviews(reviews);
-      const events = await fetchEvents(business_id);
+      const events = await fetchEvents(business.id);
       setEvents(events);
+      const favorites = await fetchProducts(business.id, true); 
+      setFavorites(favorites);
     };
+
+    const updateUserBehavior = async () => {
+      const newTags = business.tags ? [...profile.recent_tags.slice(business.tags.length - 1, 15), business.tags].flat() : profile.recent_tags;
+      const recentlyViewedBusinesses = profile.recently_viewed_businesses.includes(business.id) ? profile.recently_viewed_businesses : [...profile.recently_viewed_businesses, business.id];
+      const { error } = await supabase.from('profiles').update({ recent_tags: newTags, recently_viewed_businesses: recentlyViewedBusinesses }).eq('id', user.id);
+      if(error) {console.error("Error updating recent behavior:", error.message);}
+    }
+
     getBusinessDetails();
+    updateUserBehavior();
   }, []);
+
+  const addFavoriteBusiness = async () => {
+      setIsFavorite(!isFavorite);
+      if(isFavorite){
+        const favoriteBusinesses = [...profile.favorite_businesses, business.id];
+        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+        if(error) {console.error("Error updating favorite businesses:", error.message);}
+      }else{
+        const favoriteBusinesses = profile.favorite_businesses.filter(id => id !== business.id);
+        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+        if(error) {console.error("Error updating favorite businesses:", error.message);}
+      }
+      console.log('isFavorite:', isFavorite);
+    }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,11 +99,8 @@ const BusinessDetail = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="icon">
+              <Button className={isFavorite ? "bg-red-500 hover:bg-red-600" : "bg-gray-200 hover:bg-gray-300"} variant="outline" size="icon" onClick={addFavoriteBusiness} title="Add to Favorites">
                 <Heart className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon">
-                <Share2 className="h-4 w-4" />
               </Button>
             </div>
           </div>

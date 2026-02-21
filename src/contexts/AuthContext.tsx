@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { UserProfile } from "@/lib/interfaces";
 
 interface AuthContextType {
   user: User | null;
   isBusinessOwner: boolean;
   loading: boolean;
+  profile: UserProfile | null; 
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
 }
@@ -15,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isBusinessOwner, setIsBusinessOwner] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null); 
   const [loading, setLoading] = useState(true);
 
   const fetchUserRoles = useCallback(async (userId: string) => {
@@ -24,6 +27,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq("user_id", userId);
 
     setIsBusinessOwner(roles?.some(r => r.role === "owner") ?? false);
+  }, []);
+
+  const fetchProfile = useCallback(async (user_id: string) => {
+    const {data, error} = await supabase.from('profiles').select('*').eq('id', user_id);
+
+    if (error) {throw new Error(`Error fetching profile: ${error.message}`);}
+    if (!data || data.length === 0) {return null;}
+
+    //Format data to match Profile interface
+    const profiles = await Promise.all(data.map(async (profile: any) => {
+        return {
+            id: profile.id,
+            username: profile.username,
+            full_name: profile.full_name,
+            email: profile.student_email,
+            avatar_url: profile.avatar_url,
+            bio: profile.bio,
+            reviews: profile.reviews || [],
+            favorite_businesses: profile.favorite_businesses || [],
+            recently_viewed_businesses: profile.recently_viewed_businesses || [],
+            favorite_products: profile.favorite_products || [],
+            recent_searches: profile.recent_searches || [],
+            recent_tags: profile.recent_tags || []
+        }
+    }));
+
+    setProfile(profiles[0]);
   }, []);
 
   const refreshRoles = useCallback(async () => {
@@ -38,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserRoles(session.user.id);
+        fetchProfile(session.user.id);
       }
       setLoading(false);
     });
@@ -60,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isBusinessOwner, loading, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, isBusinessOwner, loading, signOut, refreshRoles, profile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,10 +16,13 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     if(search_string){query = query.select().textSearch('find_business', search_string);}
 
     //Apply filters based on query parameters
+    if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
     if (filters.category) { query = query.eq('category', filters.category as Category);  console.log("Category filter applied:", filters.category);}
     if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
     if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
+    if(filters.business_id){query = query.eq('id', filters.business_id);
 
+    }
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
     if (!data) {return null;}
@@ -29,11 +32,11 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
         // Get owner name from profile
         const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('full_name,username')
             .eq('id', business.owner_id)
             .single();
         
-        const ownerName = profile?.full_name || 'Unknown';
+        const ownerName = profile?.full_name || profile?.username || 'Unknown';
         
         // Get logo URL if it exists
         let logoUrl = business.logo_url;
@@ -68,7 +71,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
 }
 
 /**
- * Insert a new business into the database.
+ * Insert a new business into the database. Adds the business id to the user's profile
  * 
  * @param business business data
  */
@@ -104,7 +107,12 @@ export async function insertBusiness(business: Business): Promise<void> {
         most_popular_products: business.most_popular_products || null,
     }); 
 
+    const {error: userError} = await supabase.from('profiles').update({
+        business_id: business.id
+    }).eq('id', business.owner_id);
+
     if(error){throw new Error(`Error inserting business: ${error.message}`);}
+    if(userError){throw new Error(`Error updating profile: ${userError.message}`);}
 }
 
 /**
@@ -132,60 +140,7 @@ export async function updateBusiness(business: Business): Promise<void> {
 
     if(error){throw new Error(`Error updating business: ${error.message}`);}
 }
-
-/**
- * Fetch business by owner ID
- * 
- * @param ownerId - The owner's user ID
- * @returns A promise that resolves to business data or null
- */
-export async function fetchBusinessByOwner(ownerId: string): Promise<Business | null> {
-    const {data, error} = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('owner_id', ownerId)
-        .maybeSingle();
-
-    if (error) {throw new Error(`Error fetching business: ${error.message}`);}
-    if (!data) {return null;}
-
-    // Get owner name from profile
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', ownerId)
-        .single();
-    
-    const ownerName = profile?.full_name || 'Unknown';
-    
-    // Get logo URL if it exists
-    let logoUrl = data.logo_url;
-    if (logoUrl && !logoUrl.startsWith('http')) {
-        const { data: logoData } = await supabase.storage
-            .from('businesses')
-            .getPublicUrl(logoUrl);
-        logoUrl = logoData?.publicUrl || logoUrl;
-    }
-
-    return {
-        id: data.id,
-        name: data.name,
-        owner_id: data.owner_id,
-        owner_name: ownerName,
-        category: data.category,
-        description: data.description,
-        logo_url: logoUrl,
-        contact_info: data.contact_info ? (data.contact_info as ContactInfo) : undefined,
-        products: await fetchProducts(String(data.id)),
-        price_range: data.price_range && Array.isArray(data.price_range) ? data.price_range.join('-') : data.price_range || '',
-        hours_of_operation: data.hours_of_operation,
-        tags: data.tags,
-        user_views: Number(data.user_views || 0),
-        most_popular_products: data.most_popular_products || null,
-        user_sentiments: data.user_sentiments,
-        reviews: data.reviews,
-    };
-}
+  
 
 /**
  * Delete a business from the database. All related rows are deleted automatically through cascade delete.
@@ -209,10 +164,10 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
  * @returns A promise that resolves to an array of product data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchProducts(business_id?: string, product_id?: string): Promise<Product[] | null> {
+export async function fetchProducts(business_id?: string, is_fav?: boolean): Promise<Product[] | null> {
     let query = supabase.from('products').select('*').eq('business_id', business_id);
 
-    if(product_id) {query = query.eq('id', product_id);}
+    if(is_fav) {query = query.eq('is_favorite', is_fav);}
     const {data, error} = await query;
 
     if (error) {throw new Error(`Error fetching products: ${error.message}`);}
@@ -229,6 +184,7 @@ export async function fetchProducts(business_id?: string, product_id?: string): 
             price: Number(product.price),
             rating: product.rating ? Number(product.rating) : null,
             tags: product.tags,
+            is_fav: product.is_favorite,
             is_service: product.is_service,
             duration: product.duration,
             reviews: product.reviews || null,
@@ -248,7 +204,7 @@ export async function fetchProducts(business_id?: string, product_id?: string): 
  * @throws Error if the insert operation fails.
  */
 export async function insertProduct(product: Product, imageFile?: File): Promise<void> {
-    let imagePath = null;
+    let imagePath: string = null;
     
     // Upload image if provided
     if (imageFile) {
@@ -280,7 +236,7 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images: imagePath ? [imagePath] : null,
+        images: imagePath ? imagePath : null,
         price: product.price,
         rating: product.rating || null,
         tags: product.tags || null,
@@ -374,19 +330,14 @@ export async function fetchProfile(user_id: string): Promise<UserProfile | null>
  * @throws Error if the delete operation fails in any table.
  */
 export async function deleteProfile(profileId: string): Promise<void> {
-    const {error: businessError} = await supabase.from('businesses').delete().eq('owner_id', profileId);
-    const {error: reviewsError} = await supabase.from('reviews').delete().eq('user_id', profileId);
-    const {error: roleError } = await supabase.from('user_roles').delete().eq('user_id', profileId);
     const {error: profileError} = await supabase.from('profiles').delete().eq('id', profileId);
     const {error: imageError} = await supabase.storage.from('account_images').remove([`${profileId}/avatar/`]);
 
-    if(businessError){throw new Error(`Error deleting business: ${businessError?.message}`);}
-    if(reviewsError){throw new Error(`Error deleting reviews: ${reviewsError?.message}`);}
-    if(roleError){throw new Error(`Error deleting user roles: ${roleError?.message}`);}
     if(profileError){throw new Error(`Error deleting profile: ${profileError?.message}`);}
     if(imageError){throw new Error(`Error deleting profile image: ${imageError.message}`);}
 }
 
+        
 /**
  * Fetches review data from the database.
  *
@@ -512,25 +463,4 @@ export async function updateEvent(event: BusinessEvent): Promise<void> {
 export async function deleteEvent(eventId: string): Promise<void> {
     const {error} = await supabase.from('events').delete().eq('id', eventId);
     if(error){throw new Error(`Error deleting event: ${error.message}`);}
-}
-
-function formatContactInfo(contact_info: string): ContactInfo {
-    if (!contact_info) {
-        return {};
-    }
-    try {
-        const contacts = typeof contact_info === 'string' ? JSON.parse(contact_info) : contact_info;
-        const business_contacts: ContactInfo = {
-            email: contacts.email, 
-            tiktok: contacts.tiktok,
-            instagram: contacts.instagram,
-            phone_number: contacts.phone_number,
-            website: contacts.website,
-            facebook: contacts.facebook,
-        }
-        return business_contacts;
-    } catch (error) {
-        console.error("Error parsing contact info:", error);
-        return {};
-    }
 }

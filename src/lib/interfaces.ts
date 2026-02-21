@@ -2,6 +2,8 @@
  * Interfaces to represent possible search filters for querying databases
  */
 export type BusinessQuery = {
+    owner_id?: string;
+    business_id?: string;
     category?: string;
     min_price?: number;
     max_price?: number;
@@ -22,32 +24,34 @@ export type Business = {
     owner_id: string; 
     owner_name: string;
     category: Category; 
-    description?: string | null;
-    logo_url?: string | null;
-    products?: Product[] | null;
+    description?: string;
+    logo_url?: string;
+    products?: Product[];
     location?: string;
     contact_info?: ContactInfo;
     hours_of_operation: string;
     deal?: string;
     rating?: number;
-    tags?: string[] | null;
-    price_range?: string | null;
+    tags?: string[];
+    price_range?: string;
     user_views: number;
     most_popular_products: string[];
-    user_sentiments: string | null;
+    user_sentiments?: string;
 }
    
 export type UserProfile = {
     id: string; 
     username: string; 
     email: string;
-    full_name?: string | null;
-    avatar_url?: string | null;
-    bio?: string | null;
-    reviews?: string[] | null;
-    favorite_businesses?: string[] | null; 
-    recently_viewed_businesses?: string[] | null;
-    favorite_products?: string[] | null;
+    full_name?: string;
+    avatar_url?: string;
+    bio?: string;
+    reviews?: string[];
+    favorite_businesses?: string[]; 
+    recently_viewed_businesses?: string[];
+    favorite_products?: string[];
+    recent_searches?:string[];
+    recent_tags?: string[] 
 }
 
 export type Product = {
@@ -56,14 +60,15 @@ export type Product = {
     business_id: string;
     is_service: boolean;
     duration: string;
-    description?: string | null;
-    image?: string | null;
+    description?: string;
+    image?: string;
+    is_fav: boolean;
     price: number; 
-    rating?: number | null;
-    tags?: string[] | null;
-    reviews?: string[] | null;
+    rating?: number;
+    tags?: string[];
+    reviews?: string[];
     user_views: number;
-    user_sentiments?: string | null;
+    user_sentiments?: string;
 }
 
 export type Review = {
@@ -74,14 +79,14 @@ export type Review = {
     business_id: string;
     date: string;
     rating: number;
-    comment?: string | null;
+    comment?: string;
 }
 
 export type BusinessEvent = {
     id: string;
     business_id: string;
     title: string;
-    description?: string | null;
+    description?: string;
     start_date: Date;
     end_date: Date;
 }

@@ -162,6 +162,7 @@ export type Database = {
           duration: string | null
           id: string
           images: string | null
+          is_favorite: boolean
           is_service: boolean
           price: number
           product_name: string
@@ -176,6 +177,7 @@ export type Database = {
           duration?: string | null
           id?: string
           images?: string | null
+          is_favorite?: boolean
           is_service?: boolean
           price: number
           product_name: string
@@ -190,6 +192,7 @@ export type Database = {
           duration?: string | null
           id?: string
           images?: string | null
+          is_favorite?: boolean
           is_service?: boolean
           price?: number
           product_name?: string
@@ -216,6 +219,8 @@ export type Database = {
           favorite_products: string[] | null
           full_name: string
           id: string
+          recent_searches: string[] | null
+          recent_tags: string[] | null
           recently_viewed_businesses: string[] | null
           reviews: string[] | null
           student_email: string
@@ -231,6 +236,8 @@ export type Database = {
           favorite_products?: string[] | null
           full_name: string
           id: string
+          recent_searches?: string[] | null
+          recent_tags?: string[] | null
           recently_viewed_businesses?: string[] | null
           reviews?: string[] | null
           student_email: string
@@ -246,6 +253,8 @@ export type Database = {
           favorite_products?: string[] | null
           full_name?: string
           id?: string
+          recent_searches?: string[] | null
+          recent_tags?: string[] | null
           recently_viewed_businesses?: string[] | null
           reviews?: string[] | null
           student_email?: string
@@ -484,6 +493,7 @@ export const Constants = {
         "Creative",
         "Tech",
         "Consumer Goods",
+        "None",
       ],
     },
   },
