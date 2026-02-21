@@ -12,7 +12,7 @@ import { ArrowLeft, Store } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { Category, Business, ContactInfo } from "@/lib/interfaces";
-import { updateBusiness, fetchBusinessByOwner } from "@/lib/data/utils";
+import { updateBusiness, fetchBusiness } from "@/lib/data/utils";
 import {
   Select,
   SelectContent,
@@ -81,7 +81,7 @@ const EditBusiness = () => {
     
     setLoadingBusiness(true);
     try {
-      const businessData = await fetchBusinessByOwner(user.id);
+      const businessData = await fetchBusiness({owner_id: user.id})[0];
       if (businessData) {
         setBusiness(businessData);
         setFormData({

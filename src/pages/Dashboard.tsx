@@ -11,7 +11,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusinessByOwner, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
 import AddProduct from "@/components/business/AddProduct";
@@ -55,7 +55,7 @@ const Dashboard = () => {
     setLoadingBusiness(true);
     try {
       // Fetch business
-      const businessData = await fetchBusinessByOwner(user.id);
+      const businessData = await fetchBusiness({owner_id: user.id})[0];
       if (businessData) {
         setBusiness(businessData);
 

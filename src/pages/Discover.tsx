@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useDeferredValue, useInsertionEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,16 +17,17 @@ import {
 } from "@/components/ui/select";
 import { Category, BusinessQuery, SortingFilters, Business } from "@/lib/interfaces";
 import { fetchBusiness } from "@/lib/data/utils";
-import { Oval } from "react-loader-spinner";
+import { supabase } from "@/integrations/supabase/client";
 import { homeSearchQuery } from "./Home";
 
 const Discover = () => {
+  const { user, loading, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState(homeSearchQuery);
+  const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
+  const [pastSearches, setPastSearches] = useState<string[]>(profile.recent_searches);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
   const [sortingFilter, setSortingFilter] = useState<SortingFilters | null>(null);
-  const { user, loading } = useAuth();
   const [businesses, setBusinesses] = useState<Business[]>([])
-  const [loadingBusinesses, setLoadingBusinesses] = useState(false);
 
   const navigate = useNavigate();
 
@@ -37,13 +38,11 @@ const Discover = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    setLoadingBusinesses(true);
     const getBusinesses = async () => {
       const selectedBusinesses = await fetchBusiness(searchFilters, searchQuery);
       setBusinesses(selectedBusinesses)
     };
     getBusinesses();
-    setLoadingBusinesses(false);
   }, [searchFilters, searchQuery]);
 
   useEffect(() => {
@@ -51,6 +50,29 @@ const Discover = () => {
       sortBusinesses(sortingFilter.toLowerCase());
     }
   }, [sortingFilter]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDeferredSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!deferredSearchQuery.trim()) return;
+
+    setPastSearches(prev =>
+      prev.includes(deferredSearchQuery)
+        ? prev
+        : [...prev, deferredSearchQuery]
+    );
+  }, [deferredSearchQuery]);
+
+  const addPastSearch = async () => {
+    const { error } = await supabase.from('profiles').update({ recent_searches: pastSearches }).eq('id', user.id);
+    if (error) { console.error("Error updating recent searches:", error.message); }
+  }
 
   const sortBusinesses = (sort_by: string) => {
     switch (sort_by) {
@@ -147,65 +169,54 @@ const Discover = () => {
           <p className="text-muted-foreground">{businesses.length} businesses found</p>
         </div>
 
-        {loadingBusinesses ?
-          <div className="flex justify-center items-center h-64">
-            <Oval
-              width={40}
-              height={40}
-              strokeWidth={2}
-              color="#353536"
-              ariaLabel="loading" />
-          </div> :
-
-          <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {businesses.map((business) => (
-              <Link key={business.id} to={`/business/${business.id}`} state={{ business }}>
-                <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={business.logo_url}
-                      alt={business.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="mb-3">
-                      <div className="flex items-start justify-between mb-1">
-                        <h3 className="font-semibold text-foreground text-lg">{business.name}</h3>
-                        <span className="text-sm font-semibold text-foreground ml-2">⭐ {business.rating}</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs mb-2">{business.category}</Badge>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{business.description}</p>
+        <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {businesses.map((business) => (
+            <Link key={business.id} to={`/business/${business.id}`} state={{ business }} onClick={() => addPastSearch()}>
+              <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={business.logo_url}
+                    alt={business.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <CardContent className="p-4">
+                  <div className="mb-3">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="font-semibold text-foreground text-lg">{business.name}</h3>
+                      <span className="text-sm font-semibold text-foreground ml-2">⭐ {business.rating}</span>
                     </div>
+                    <Badge variant="outline" className="text-xs mb-2">{business.category}</Badge>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{business.description}</p>
+                  </div>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span>{business.price_range}</span>
-                        <span>•</span>
-                        {/* Replace with rating
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>{business.price_range}</span>
+                      <span>•</span>
+                      {/* Replace with rating
                         <span>{business.reviews} reviews</span>
                         */}
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        }
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
 
 
-       {/* AI Recommendations */}
-        <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 container mb-4">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-xl font-bold text-foreground mb-2">Get Personalized Recommendations</h3>
-            <p className="text-muted-foreground mb-4">
-              Our AI learns from your preferences to suggest businesses you'll love
-            </p>
-            <Button>Enable Smart Recommendations</Button>
-          </CardContent>
-        </Card>
+      {/* AI Recommendations */}
+      <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 container mb-4">
+        <CardContent className="p-8 text-center">
+          <h3 className="text-xl font-bold text-foreground mb-2">Get Personalized Recommendations</h3>
+          <p className="text-muted-foreground mb-4">
+            Our AI learns from your preferences to suggest businesses you'll love
+          </p>
+          <Button>Enable Smart Recommendations</Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };
