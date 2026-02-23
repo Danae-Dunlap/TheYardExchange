@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import bisonLogo from "@/assets/bison-logo.png";
-import Footer from "@/components/layout/Footer";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }),
@@ -259,8 +258,6 @@ const Auth = () => {
           </CardContent>
         </Card>
       </div>
-
-      <Footer />
     </div>
   );
 };

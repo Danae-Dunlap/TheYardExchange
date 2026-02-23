@@ -19,9 +19,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     //Apply filters based on query parameters
     if(filters){
         if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
-        if (filters.category) { query = query.eq('category', filters.category as Category);  console.log("Category filter applied:", filters.category);}
-        if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
-        if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
+        if (filters.category) { query = query.eq('category', filters.category as Category);}
         if(filters.business_id){query = query.eq('id', filters.business_id);
         }
     }
@@ -59,7 +57,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             logo_url: logoUrl,
             contact_info: business.contact_info ? (business.contact_info as ContactInfo) : undefined,
             products: await fetchProducts(String(business.id)),
-            price_range: business.price_range && Array.isArray(business.price_range) ? business.price_range.join('-') : business.price_range || '',
+            price_range: business.price_range,
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
             user_views: Number(business.user_views || 0),
@@ -69,7 +67,20 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
         }
     }));
 
-    return businesses;
+    let result = await businesses;
+    
+    // Client-side price filtering
+    if (filters?.min_price || filters?.max_price) {
+        const minPrice = filters.min_price ? parseFloat(filters.min_price) : 0;
+        const maxPrice = filters.max_price ? parseFloat(filters.max_price) : Infinity;
+        
+        result = result?.filter(business => {
+            if (!business.price_range || business.price_range.length < 2) return true;
+            return business.price_range[0] >= minPrice && business.price_range[1] <= maxPrice;
+        }) || null;
+    }
+
+    return result;
 }
 
 /**
@@ -78,7 +89,6 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
  * @param business business data
  */
 export async function insertBusiness(business: Business): Promise<void> {
-    const priceRange = business.price_range ? business.price_range.split('-') : null;
     
     // Handle logo upload if provided
     let logoUrl = null;
@@ -104,7 +114,7 @@ export async function insertBusiness(business: Business): Promise<void> {
         hours_of_operation: business.hours_of_operation,
         tags: business.tags || null,
         deal: business.deal || null,
-        price_range: priceRange || null,
+        price_range: business.price_range || null,
         user_views: business.user_views || 0,
         most_popular_products: business.most_popular_products || null,
     }); 
@@ -123,7 +133,6 @@ export async function insertBusiness(business: Business): Promise<void> {
  * @param business business data
  */
 export async function updateBusiness(business: Business): Promise<void> {
-    const priceRange = business.price_range ? business.price_range.split('-') : null;
     const {error} = await supabase.from('businesses').update({
         name: business.name, 
         owner_id: business.owner_id,
@@ -134,7 +143,7 @@ export async function updateBusiness(business: Business): Promise<void> {
         contact_info: business.contact_info || null,
         hours_of_operation: business.hours_of_operation,
         tags: business.tags || null,
-        price_range: priceRange || null,
+        price_range: business.price_range || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
         user_sentiments: business.user_sentiments || null,

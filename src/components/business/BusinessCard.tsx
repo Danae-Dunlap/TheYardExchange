@@ -1,8 +1,9 @@
 import {Link, useNavigate} from "react-router-dom"; 
 import {Card, CardContent} from "@/components/ui/card";
 import { Badge } from "../ui/badge";
+import { DollarSign } from "lucide-react";
 
-export const BusinessDetail = ({ business }) => {
+export const BusinessCard = ({ business }) => {
     return(<div>
         <Link key={business.id} to={`/business/${business.id}`} state={{ business }}>
               <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
@@ -26,8 +27,8 @@ export const BusinessDetail = ({ business }) => {
                   </div>
 
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span>{business.price_range}</span>
+                    <div >
+                      <span className="flex flex-row items-center"><DollarSign className="w-4 h-4" /> {business.price_range[0]}-{business.price_range[1]}</span>
                     </div>
                   </div>
                 </CardContent>

@@ -197,7 +197,7 @@ const EditBusiness = () => {
         owner_name: ownerName,
         category: validated.category,
         description: validated.description,
-        price_range: validated.price_range,
+        price_range: validated.price_range.split("-").map(Number), //TEMPORARY FIX - SEE https://github.com/Danae-Dunlap/TheYardExchange/issues/64
         hours_of_operation: validated.hours_of_operation,
         contact_info: Object.keys(contactInfo).length > 0 ? contactInfo : undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,

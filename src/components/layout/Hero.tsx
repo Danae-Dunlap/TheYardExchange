@@ -1,56 +1,113 @@
-import { Search } from "lucide-react";
+import { Search, Star, Heart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Category } from "@/lib/interfaces";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-// Note: In a production app, these should be handled via a State Management library or Context
-export let homeSearchQuery = ""; 
+// TO-DO: Swap this out for URL Query Params
+export let homeSearchQuery = "";
 export let selectedCategory: Category = Category.Default;
 
-const HeroSection = () => {
-  const navigate = useNavigate();
-  const handleSearch = () => navigate('/discover');
+const HomeHeroSection = () => {
+    const navigate = useNavigate();
+    const handleSearch = () => navigate('/discover');
 
-  return (
-    <section className="bg-gradient-to-br from-primary/10 via-secondary/10 to-background py-20 px-4">
-      <div className="container mx-auto max-w-4xl text-center">
-        <Badge className="mb-4 bg-primary/20 text-primary border-primary/30">
-          For Howard Students, By Howard Students
-        </Badge>
-        <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
-          Discover & Support Student Businesses
-        </h2>
-        <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Connect with talented entrepreneurs across campus.
-        </p>
-        
-        <div className="flex gap-2 max-w-2xl mx-auto mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search for businesses..." 
-              className="pl-10 h-12"
-              onChange={(e) => homeSearchQuery = e.target.value}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-          </div>
-          <Button size="lg" className="h-12" onClick={handleSearch}>Search</Button>
-        </div>
+    return (
+        <section className="bg-gradient-to-br from-primary/10 via-secondary/10 to-background py-20 px-4">
+            <div className="container mx-auto max-w-4xl text-center">
+                <Badge className="mb-4 bg-primary/20 text-primary border-primary/30">
+                    For Howard Students, By Howard Students
+                </Badge>
+                <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+                    Discover & Support Student Businesses
+                </h2>
+                <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+                    Connect with talented entrepreneurs across campus.
+                </p>
 
-        <div className="flex flex-wrap justify-center gap-2">
-          {Object.values(Category).map((cat) => (
-            <Link key={cat} to={`/discover`} onClick={() => selectedCategory = cat}>
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
-                {cat}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+                <div className="flex gap-2 max-w-2xl mx-auto mb-6">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search for businesses..."
+                            className="pl-10 h-12"
+                            onChange={(e) => homeSearchQuery = e.target.value}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        />
+                    </div>
+                    <Button size="lg" className="h-12" onClick={handleSearch}>Search</Button>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-2">
+                    {Object.values(Category).map((cat) => (
+                        <Link key={cat} to={`/discover`} onClick={() => selectedCategory = cat}>
+                            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                                {cat}
+                            </Badge>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
 };
 
-export default HeroSection;
+const BusinessDetailHeroSection = ({ business, reviewsLength }) => {
+    const {user, profile} = useAuth();
+    const [isFavorite, setIsFavorite] = useState(profile?.favorite_businesses.includes(business.id) || false);
+
+    const addFavoriteBusiness = async () => {
+      setIsFavorite(!isFavorite);
+      if(isFavorite){
+        const favoriteBusinesses = [...profile.favorite_businesses, business.id];
+        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+        if(error) {console.error("Error updating favorite businesses:", error.message);}
+      }else{
+        const favoriteBusinesses = profile.favorite_businesses.filter(id => id !== business.id);
+        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+        if(error) {console.error("Error updating favorite businesses:", error.message);}
+      }
+    }
+    
+    return (
+        <div className="relative h-[400px] overflow-hidden">
+            <img
+                src={business.logo_url}
+                alt={business.name}
+                className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 container mx-auto px-4 pb-8">
+                {business.deal && (
+                    <Badge className="mb-4 bg-secondary text-secondary-foreground">
+                        🎉 {business.deal}
+                    </Badge>
+                )}
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h1 className="text-4xl font-bold text-foreground mb-2">{business.name}</h1>
+                        <div className="flex items-center gap-4 text-foreground/90 mb-2">
+                            <Badge variant="outline">{business.category.valueOf()}</Badge>
+                            <div className="flex items-center gap-1">
+                                <Star className="h-4 w-4 fill-primary text-primary" />
+                                <span className="font-semibold">{business.rating}</span>
+                                <span className="text-muted-foreground">({reviewsLength} reviews)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button className={isFavorite ? "bg-red-500 hover:bg-red-600" : "bg-gray-200 hover:bg-gray-300"} variant="outline" size="icon" onClick={addFavoriteBusiness} title="Add to Favorites">
+                            <Heart className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export { HomeHeroSection, BusinessDetailHeroSection };

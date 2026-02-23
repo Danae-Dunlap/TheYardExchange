@@ -2,7 +2,7 @@ import { Card, CardContent } from "../ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Star } from "lucide-react";
 
-const ReviewComponent = ({ review }) => {
+const Review = ({ review }) => {
     return (
                 <div key={review.id} className="flex items-start gap-4">
                     <Avatar>
@@ -29,6 +29,6 @@ const ReviewComponent = ({ review }) => {
     );
 }
 
-export default ReviewComponent;
+export default Review;
 
 

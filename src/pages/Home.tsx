@@ -6,7 +6,7 @@ import { fetchBusiness } from "@/lib/data/utils";
 
 // Layout & Components
 import Header from "@/components/layout/Header";
-import HeroSection from "@/components/layout/Hero";
+import { HomeHeroSection } from "@/components/layout/Hero";
 import TrendingSection from "@/components/layout/Trending";
 import FeaturedSection from "@/components/layout/Featured";
 import AIChatbot from "@/components/layout/AIChatbot";
@@ -45,7 +45,7 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main>
-        <HeroSection />
+        <HomeHeroSection />
         <TrendingSection />
         <FeaturedSection featuredBusinesses={featuredBusinesses} />
         <AIChatbot />

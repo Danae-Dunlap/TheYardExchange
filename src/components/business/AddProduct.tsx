@@ -82,6 +82,7 @@ const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductPro
         is_service: validated.is_service,
         image: validated.image ? validated.image.name : null,
         user_views: 0,
+        is_fav: false,
         rating: null,
         reviews: null,
         user_sentiments: null,

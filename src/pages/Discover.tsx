@@ -1,8 +1,5 @@
-import { useState, useEffect, useDeferredValue, useInsertionEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect} from "react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
@@ -16,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category, BusinessQuery, SortingFilters, Business } from "@/lib/interfaces";
-import { BusinessDetail } from "@/components/business/BusinessDetail";
+import { BusinessCard } from "@/components/business/BusinessCard";
 import { fetchBusiness } from "@/lib/data/utils";
 import { supabase } from "@/integrations/supabase/client";
 import Footer from "@/components/layout/Footer";
@@ -26,9 +23,8 @@ const Discover = () => {
   const { user, loading, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState(homeSearchQuery);
   const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
-  const [pastSearches, setPastSearches] = useState<string[]>(profile.recent_searches);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
-  const [sortingFilter, setSortingFilter] = useState<SortingFilters | null>(null);
+  const [sortingFilter, setSortingFilter] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([])
 
   const navigate = useNavigate();
@@ -42,16 +38,17 @@ const Discover = () => {
   useEffect(() => {
     const getBusinesses = async () => {
       const selectedBusinesses = await fetchBusiness(searchFilters, searchQuery);
-      setBusinesses(selectedBusinesses)
+      if (selectedBusinesses) {
+        if (sortingFilter) {
+          const sorted = sortBusinesses([...selectedBusinesses], sortingFilter.toLowerCase());
+          setBusinesses(sorted);
+        } else {
+          setBusinesses(selectedBusinesses);
+        }
+      }
     };
     getBusinesses();
-  }, [searchFilters, searchQuery]);
-
-  useEffect(() => {
-    if (sortingFilter) {
-      sortBusinesses(sortingFilter.toLowerCase());
-    }
-  }, [sortingFilter]);
+  }, [searchFilters, searchQuery, sortingFilter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -63,31 +60,39 @@ const Discover = () => {
 
   useEffect(() => {
     if (!deferredSearchQuery.trim()) return;
-
-    setPastSearches(prev =>
-      prev.includes(deferredSearchQuery)
-        ? prev
-        : [...prev, deferredSearchQuery]
-    );
+    const updateRecentSearches = async () => {
+      const {error} = await supabase.from('profiles').update({
+        recent_searches: [...(profile?.recent_searches || []), deferredSearchQuery]
+      }).eq('id', profile?.id);
+      if (error) {
+        console.error("Error updating recent searches:", error);
+      }
+    }
+    updateRecentSearches();
   }, [deferredSearchQuery]);
 
-  const addPastSearch = async () => {
-    const { error } = await supabase.from('profiles').update({ recent_searches: pastSearches }).eq('id', user.id);
-    if (error) { console.error("Error updating recent searches:", error.message); }
-  }
-
-  const sortBusinesses = (sort_by: string) => {
+  const sortBusinesses = (businessesToSort: Business[], sort_by: string): Business[] => {
+    const sorted = [...businessesToSort];
     switch (sort_by) {
-      case SortingFilters.Highest_Rated:
-        businesses.sort((a, b) => b.rating - a.rating);
+      case SortingFilters.Highest_Rated.toLowerCase():
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
-      case SortingFilters.Price_Low_High:
-        businesses.sort((a, b) => a.price_range.localeCompare(b.price_range));
+      case SortingFilters.Price_Low_High.toLowerCase():
+        sorted.sort((a, b) => {
+          const aPrice = a.price_range?.[0] ? a.price_range[0] : 0;
+          const bPrice = b.price_range?.[0] ? b.price_range[0] : 0;
+          return aPrice - bPrice;
+        });
         break;
-      case SortingFilters.Price_High_Low:
-        businesses.sort((a, b) => b.price_range.localeCompare(a.price_range));
+      case SortingFilters.Price_High_Low.toLowerCase():
+        sorted.sort((a, b) => {
+          const aPrice = a.price_range?.[1] ? a.price_range[1] : 0;
+          const bPrice = b.price_range?.[1] ? b.price_range[1] : 0;
+          return bPrice - aPrice;
+        });
         break;
     }
+    return sorted;
   }
 
   if (loading) {
@@ -130,13 +135,14 @@ const Discover = () => {
 
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Sort By</Label>
-              <Select defaultValue={SortingFilters.Highest_Rated}>
+              <Select defaultValue={SortingFilters.Highest_Rated} 
+              onValueChange={(e) => {setSortingFilter(e)}}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(SortingFilters).map((filter) => (
-                    <SelectItem onClick={() => setSortingFilter(filter)} key={filter} value={filter.toLowerCase() || ''}>
+                    <SelectItem key={filter} value={filter.toLowerCase()}>
                       {filter}
                     </SelectItem>
                   ))}
@@ -148,15 +154,17 @@ const Discover = () => {
               <div className="flex flex-col gap-1 w-[120px]">
                 <Label htmlFor="min-price" className="text-sm text-center"> Min Price </Label>
                 <Input
+                  type="number"
                   id="min-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, min_price: Number(e.target.value) })}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, min_price: e.target.value })}
                 />
               </div>
               <div className="flex flex-col gap-1 w-[120px]">
                 <Label htmlFor="max-price" className="text-sm text-center"> Max Price </Label>
                 <Input
+                  type="number"
                   id="max-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, max_price: Number(e.target.value) })}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, max_price: e.target.value })}
                 />
               </div>
             </div>
@@ -173,22 +181,10 @@ const Discover = () => {
 
         <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {businesses.map((business) => (
-            <BusinessDetail business={business} key={business.id} />
+            <BusinessCard business={business} key={business.id} />
           ))}
         </div>
       </div>
-
-
-      {/* AI Recommendations */}
-      <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 container mb-4">
-        <CardContent className="p-8 text-center">
-          <h3 className="text-xl font-bold text-foreground mb-2">Get Personalized Recommendations</h3>
-          <p className="text-muted-foreground mb-4">
-            Our AI learns from your preferences to suggest businesses you'll love
-          </p>
-          <Button>Enable Smart Recommendations</Button>
-        </CardContent>
-      </Card>
 
       <Footer />
     </div>
