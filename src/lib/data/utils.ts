@@ -9,19 +9,21 @@ import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery,
  * @returns A promise that resolves to an array of business data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchBusiness(filters?: BusinessQuery, search_string?: string): Promise<Business[] | null> {
+export async function fetchBusiness(filters?: BusinessQuery, search_string?: string, is_featured?:boolean): Promise<Business[] | null> {
     
     let query = supabase.from('businesses').select('*');
 
     if(search_string){query = query.select().textSearch('find_business', search_string);}
+    if(is_featured !== undefined){query = query.eq('is_featured', is_featured);}
 
     //Apply filters based on query parameters
-    if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
-    if (filters.category) { query = query.eq('category', filters.category as Category);  console.log("Category filter applied:", filters.category);}
-    if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
-    if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
-    if(filters.business_id){query = query.eq('id', filters.business_id);
-
+    if(filters){
+        if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
+        if (filters.category) { query = query.eq('category', filters.category as Category);  console.log("Category filter applied:", filters.category);}
+        if (filters.min_price) { query = query.gte('price_range[0]', filters.min_price); console.log("Min price filter applied:", filters.min_price);}
+        if (filters.max_price) { query = query.lte('price_range[1]', filters.max_price); console.log("Max price filter applied:", filters.max_price);}
+        if(filters.business_id){query = query.eq('id', filters.business_id);
+        }
     }
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}

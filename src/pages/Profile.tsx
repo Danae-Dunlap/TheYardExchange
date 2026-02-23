@@ -12,6 +12,7 @@ import { User, Store, ArrowLeft } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import type { UserProfile } from "@/lib/interfaces";
+import Footer from "@/components/layout/Footer";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -352,6 +353,8 @@ const ProfilePage = () => {
           </Card>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

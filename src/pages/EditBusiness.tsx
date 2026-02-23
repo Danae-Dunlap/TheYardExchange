@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Footer from "@/components/layout/Footer";
 
 const businessSchema = z.object({
   name: z.string().trim().min(1, "Business name is required").max(100, "Name must be less than 100 characters"),
@@ -441,6 +442,8 @@ const EditBusiness = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Footer />
     </div>
   );
 };

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import bisonLogo from "@/assets/bison-logo.png";
 import type { User } from "@supabase/supabase-js";
+import Footer from "@/components/layout/Footer";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -226,6 +227,8 @@ const Onboarding = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 };

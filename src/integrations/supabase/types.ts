@@ -48,6 +48,7 @@ export type Database = {
           description: string | null
           hours_of_operation: string
           id: string
+          is_featured: boolean
           location: string | null
           logo_url: string | null
           most_popular_products: string[] | null
@@ -67,6 +68,7 @@ export type Database = {
           description?: string | null
           hours_of_operation?: string
           id?: string
+          is_featured?: boolean
           location?: string | null
           logo_url?: string | null
           most_popular_products?: string[] | null
@@ -85,6 +87,7 @@ export type Database = {
           description?: string | null
           hours_of_operation?: string
           id?: string
+          is_featured?: boolean
           location?: string | null
           logo_url?: string | null
           most_popular_products?: string[] | null

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  TrendingUp, Users, MessageCircle, 
+  TrendingUp, MessageCircle, 
   Eye, Heart, Star, Calendar, Settings,
   BarChart3, Clock, Lightbulb, Store, Plus
 } from "lucide-react";
@@ -16,6 +16,7 @@ import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
 import AddProduct from "@/components/business/AddProduct";
 import AddEvent from "@/components/business/AddEvent";
+import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
   const { user, isBusinessOwner, loading } = useAuth();
@@ -498,6 +499,8 @@ const Dashboard = () => {
           />
         </>
       )}
+
+      <Footer />
     </div>
   );
 };
