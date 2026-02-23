@@ -16,9 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category, BusinessQuery, SortingFilters, Business } from "@/lib/interfaces";
+import { BusinessDetail } from "@/components/business/BusinessDetail";
 import { fetchBusiness } from "@/lib/data/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { homeSearchQuery } from "./Home";
+import Footer from "@/components/layout/Footer";
+import { homeSearchQuery, selectedCategory } from "@/components/layout/Hero";
 
 const Discover = () => {
   const { user, loading, profile } = useAuth();
@@ -111,7 +113,7 @@ const Discover = () => {
             </div>
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Category</Label>
-              <Select defaultValue={Category.Default}
+              <Select defaultValue={selectedCategory}
                 onValueChange={(e) => setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined })}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select Category" />
@@ -171,37 +173,7 @@ const Discover = () => {
 
         <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {businesses.map((business) => (
-            <Link key={business.id} to={`/business/${business.id}`} state={{ business }} onClick={() => addPastSearch()}>
-              <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={business.logo_url}
-                    alt={business.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <CardContent className="p-4">
-                  <div className="mb-3">
-                    <div className="flex items-start justify-between mb-1">
-                      <h3 className="font-semibold text-foreground text-lg">{business.name}</h3>
-                      <span className="text-sm font-semibold text-foreground ml-2">⭐ {business.rating}</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs mb-2">{business.category}</Badge>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{business.description}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span>{business.price_range}</span>
-                      <span>•</span>
-                      {/* Replace with rating
-                        <span>{business.reviews} reviews</span>
-                        */}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <BusinessDetail business={business} key={business.id} />
           ))}
         </div>
       </div>
@@ -217,6 +189,8 @@ const Discover = () => {
           <Button>Enable Smart Recommendations</Button>
         </CardContent>
       </Card>
+
+      <Footer />
     </div>
   );
 };

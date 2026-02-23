@@ -39,6 +39,9 @@ const BusinessDetail = () => {
       setEvents(events);
       const favorites = await fetchProducts(business.id, true); 
       setFavorites(favorites);
+      
+      const { error } = await supabase.from('businesses').update({ user_views: business.user_views + 1 }).eq('id', business.id);
+      if(error) {console.error("Error updating user views:", error.message);}
     };
 
     const updateUserBehavior = async () => {

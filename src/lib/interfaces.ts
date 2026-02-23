@@ -8,6 +8,7 @@ export type BusinessQuery = {
     min_price?: number;
     max_price?: number;
     tags?: string[];
+    is_featured?:boolean;
 }
 
 export type ReviewQuery = {
