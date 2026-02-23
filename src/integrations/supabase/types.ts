@@ -54,7 +54,7 @@ export type Database = {
           most_popular_products: string[] | null
           name: string
           owner_id: string
-          price_range: string[] | null
+          price_range: number[] | null
           tags: string[] | null
           updated_at: string
           user_views: number | null
@@ -74,7 +74,7 @@ export type Database = {
           most_popular_products?: string[] | null
           name: string
           owner_id: string
-          price_range?: string[] | null
+          price_range?: number[] | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
@@ -93,7 +93,7 @@ export type Database = {
           most_popular_products?: string[] | null
           name?: string
           owner_id?: string
-          price_range?: string[] | null
+          price_range?: number[] | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null

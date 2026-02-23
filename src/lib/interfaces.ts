@@ -5,8 +5,8 @@ export type BusinessQuery = {
     owner_id?: string;
     business_id?: string;
     category?: string;
-    min_price?: number;
-    max_price?: number;
+    min_price?: string;
+    max_price?: string;
     tags?: string[];
     is_featured?:boolean;
 }
@@ -34,7 +34,7 @@ export type Business = {
     deal?: string;
     rating?: number;
     tags?: string[];
-    price_range?: string;
+    price_range?: number[];
     user_views: number;
     most_popular_products: string[];
     user_sentiments?: string;

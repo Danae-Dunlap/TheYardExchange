@@ -1,6 +1,6 @@
 import { Button } from "../ui/button";
 import { Link } from "react-router-dom";
-import { BusinessDetail } from "../business/BusinessDetail";
+import { BusinessCard } from "../business/BusinessCard";
 
 const FeaturedSection =  ({featuredBusinesses}) => {
     return(
@@ -14,7 +14,7 @@ const FeaturedSection =  ({featuredBusinesses}) => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredBusinesses.map((business) => (
-              <BusinessDetail business={business} key={business.id} />
+              <BusinessCard business={business} key={business.id} />
             ))}
           </div>
         </div>
