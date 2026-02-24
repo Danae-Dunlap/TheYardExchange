@@ -5,10 +5,10 @@ import HandleBusinessOwner from "@/components/profile/HandleBusiness";
 
 const ProfilePage = () => {
   return (
-    <div>
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-8 max-w-2xl flex-1">
         <ProfileInfo />
         <HandleBusinessOwner />
       </div>
