@@ -1,5 +1,5 @@
 import { Search, Star, Heart } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ export let selectedCategory: Category = Category.Default;
 const HomeHeroSection = () => {
     const navigate = useNavigate();
     const handleSearch = () => navigate('/discover');
+    const [searchParams, setSearchParams] = useSearchParams();
 
     return (
         <section className="bg-gradient-to-br from-primary/10 via-secondary/10 to-background py-20 px-4">

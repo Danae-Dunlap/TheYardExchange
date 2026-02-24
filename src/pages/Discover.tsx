@@ -1,7 +1,7 @@
 import { useState, useEffect} from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,16 +96,16 @@ const Discover = () => {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+    return <div className="bg-background flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 flex-1">
         {/* Search and Filters */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="flex flex-col md:flex-row gap-4 mb-4 items-end">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -136,7 +136,7 @@ const Discover = () => {
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Sort By</Label>
               <Select defaultValue={SortingFilters.Highest_Rated} 
-              onValueChange={(e) => {setSortingFilter(e)}}>
+              onValueChange={(e) => setSortingFilter(e)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -156,7 +156,8 @@ const Discover = () => {
                 <Input
                   type="number"
                   id="min-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, min_price: e.target.value })}
+                  onChange={(e) => {
+                    setSearchFilters({ ...searchFilters, min_price: e.target.value });}}
                 />
               </div>
               <div className="flex flex-col gap-1 w-[120px]">
@@ -164,7 +165,8 @@ const Discover = () => {
                 <Input
                   type="number"
                   id="max-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, max_price: e.target.value })}
+                  onChange={(e) => {
+                    setSearchFilters({ ...searchFilters, max_price: e.target.value });}}
                 />
               </div>
             </div>
@@ -173,13 +175,14 @@ const Discover = () => {
       </div>
 
       {/* Results Header */}
-      <div className="mx-auto px-20 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Discover Businesses</h2>
+      <div className="mx-auto block w-full p-6">
+
+        <div className="mb-6 ml-6">
+          <h2 className="text-2xl font-bold text-foreground mb-2 relative">Discover Businesses</h2>
           <p className="text-muted-foreground">{businesses.length} businesses found</p>
         </div>
 
-        <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 min-h-[500px]">
           {businesses.map((business) => (
             <BusinessCard business={business} key={business.id} />
           ))}
