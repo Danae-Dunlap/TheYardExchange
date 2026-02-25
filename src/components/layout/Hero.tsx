@@ -1,5 +1,5 @@
 import { Search, Star, Heart } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,14 +8,19 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-// TO-DO: Swap this out for URL Query Params
-export let homeSearchQuery = "";
-export let selectedCategory: Category = Category.Default;
-
 const HomeHeroSection = () => {
     const navigate = useNavigate();
-    const handleSearch = () => navigate('/discover');
+    const [searchQuery, setSearchQuery] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const handleSearch = (cat?: string) => {
+        setSearchParams((searchParams) => {
+            searchParams.set("search", searchQuery);
+            searchParams.set("category", cat ? cat : Category.Default);
+            return searchParams;
+        }); 
+        navigate(`/discover?${searchParams.toString()}`);  
+    }
 
     return (
         <section className="bg-gradient-to-br from-primary/10 via-secondary/10 to-background py-20 px-4">
@@ -36,20 +41,18 @@ const HomeHeroSection = () => {
                         <Input
                             placeholder="Search for businesses..."
                             className="pl-10 h-12"
-                            onChange={(e) => homeSearchQuery = e.target.value}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         />
                     </div>
-                    <Button size="lg" className="h-12" onClick={handleSearch}>Search</Button>
+                    <Button size="lg" className="h-12" onClick={() => handleSearch()}>Search</Button>
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-2">
                     {Object.values(Category).map((cat) => (
-                        <Link key={cat} to={`/discover`} onClick={() => selectedCategory = cat}>
-                            <Badge variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
-                                {cat}
-                            </Badge>
-                        </Link>
+                        <Badge onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                            {cat}
+                        </Badge>
                     ))}
                 </div>
             </div>
@@ -58,22 +61,22 @@ const HomeHeroSection = () => {
 };
 
 const BusinessDetailHeroSection = ({ business, reviewsLength }) => {
-    const {user, profile} = useAuth();
+    const { user, profile } = useAuth();
     const [isFavorite, setIsFavorite] = useState(profile?.favorite_businesses.includes(business.id) || false);
 
     const addFavoriteBusiness = async () => {
-      setIsFavorite(!isFavorite);
-      if(isFavorite){
-        const favoriteBusinesses = [...profile.favorite_businesses, business.id];
-        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
-        if(error) {console.error("Error updating favorite businesses:", error.message);}
-      }else{
-        const favoriteBusinesses = profile.favorite_businesses.filter(id => id !== business.id);
-        const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
-        if(error) {console.error("Error updating favorite businesses:", error.message);}
-      }
+        setIsFavorite(!isFavorite);
+        if (isFavorite) {
+            const favoriteBusinesses = [...profile.favorite_businesses, business.id];
+            const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+            if (error) { console.error("Error updating favorite businesses:", error.message); }
+        } else {
+            const favoriteBusinesses = profile.favorite_businesses.filter(id => id !== business.id);
+            const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
+            if (error) { console.error("Error updating favorite businesses:", error.message); }
+        }
     }
-    
+
     return (
         <div className="relative h-[400px] overflow-hidden">
             <img

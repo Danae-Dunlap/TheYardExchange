@@ -1,7 +1,7 @@
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import {useNavigate} from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,16 +17,15 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 import { fetchBusiness } from "@/lib/data/utils";
 import { supabase } from "@/integrations/supabase/client";
 import Footer from "@/components/layout/Footer";
-import { homeSearchQuery, selectedCategory } from "@/components/layout/Hero";
 
 const Discover = () => {
   const { user, loading, profile } = useAuth();
-  const [searchQuery, setSearchQuery] = useState(homeSearchQuery);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
   const [sortingFilter, setSortingFilter] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([])
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,7 +60,7 @@ const Discover = () => {
   useEffect(() => {
     if (!deferredSearchQuery.trim()) return;
     const updateRecentSearches = async () => {
-      const {error} = await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         recent_searches: [...(profile?.recent_searches || []), deferredSearchQuery]
       }).eq('id', profile?.id);
       if (error) {
@@ -113,13 +112,19 @@ const Discover = () => {
                 placeholder="Search businesses, services, products..."
                 className="pl-10"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchParams(prev => { prev.set("search", e.target.value); return prev; });
+                }}
               />
             </div>
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Category</Label>
-              <Select defaultValue={selectedCategory}
-                onValueChange={(e) => setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined })}>
+              <Select defaultValue={searchParams.get("category") || Category.Default}
+                onValueChange={(e) => {
+                  setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined });
+                  setSearchParams(prev => { prev.set("category", e != Category.Default ? e : Category.Default); return prev; });
+                }}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
@@ -135,8 +140,11 @@ const Discover = () => {
 
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Sort By</Label>
-              <Select defaultValue={SortingFilters.Highest_Rated} 
-              onValueChange={(e) => setSortingFilter(e)}>
+              <Select defaultValue={searchParams.get("sort_by") || SortingFilters.Highest_Rated}
+                onValueChange={(e) => {
+                  setSortingFilter(e);
+                  setSearchParams(prev => { prev.set("sort_by", e); return prev; });
+                }}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -156,8 +164,11 @@ const Discover = () => {
                 <Input
                   type="number"
                   id="min-price"
+                  defaultValue={searchParams.get('min_price') || null}
                   onChange={(e) => {
-                    setSearchFilters({ ...searchFilters, min_price: e.target.value });}}
+                    setSearchFilters({ ...searchFilters, min_price: e.target.value });
+                    setSearchParams(prev => { prev.set("min_price", e.target.value); return prev; });
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1 w-[120px]">
@@ -165,8 +176,11 @@ const Discover = () => {
                 <Input
                   type="number"
                   id="max-price"
+                  defaultValue={searchParams.get('max_price') || null}
                   onChange={(e) => {
-                    setSearchFilters({ ...searchFilters, max_price: e.target.value });}}
+                    setSearchFilters({ ...searchFilters, max_price: e.target.value });
+                    setSearchParams(prev => { prev.set("max_price", e.target.value); return prev; });
+                  }}
                 />
               </div>
             </div>
@@ -176,7 +190,6 @@ const Discover = () => {
 
       {/* Results Header */}
       <div className="mx-auto block w-full p-6">
-
         <div className="mb-6 ml-6">
           <h2 className="text-2xl font-bold text-foreground mb-2 relative">Discover Businesses</h2>
           <p className="text-muted-foreground">{businesses.length} businesses found</p>
