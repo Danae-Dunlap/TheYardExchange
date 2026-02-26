@@ -1,7 +1,8 @@
-import {Link, useNavigate} from "react-router-dom"; 
+import {Link} from "react-router-dom"; 
 import {Card, CardContent} from "@/components/ui/card";
 import { Badge } from "../ui/badge";
 import { DollarSign } from "lucide-react";
+import { priceRange } from "./Detail";
 
 export const BusinessCard = ({ business }) => {
     return(<div>
@@ -28,7 +29,7 @@ export const BusinessCard = ({ business }) => {
 
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div >
-                      <span className="flex flex-row items-center"><DollarSign className="w-4 h-4" /> {business.price_range[0]}-{business.price_range[1]}</span>
+                      <span className="flex flex-row items-center"><DollarSign className="w-4 h-4" /> {priceRange(business.price_range)}</span>
                     </div>
                   </div>
                 </CardContent>
