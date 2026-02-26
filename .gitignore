@@ -26,4 +26,3 @@ src/pages/__test__/Discover.test.tsx
 src/types/assests.d.ts
 __mocks__/fileMock.ts
 jest.config.ts
-src/components/business/Hours.tsx

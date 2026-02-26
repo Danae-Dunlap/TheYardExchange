@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  TrendingUp, MessageCircle, 
+import {
+  TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
   BarChart3, Clock, Lightbulb, Store, Plus
 } from "lucide-react";
@@ -14,14 +14,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
-import AddProduct from "@/components/business/AddProduct";
-import AddEvent from "@/components/business/AddEvent";
+import { AddProduct } from "@/components/business/Product";
+import { AddEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
   const { user, isBusinessOwner, loading } = useAuth();
   const navigate = useNavigate();
-  const [business, setBusiness] = useState<Business | null>(null);
+  const [business, setbusiness] = useState<Business | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
@@ -52,24 +52,24 @@ const Dashboard = () => {
 
   const loadBusinessData = async () => {
     if (!user) return;
-    
+
     setLoadingBusiness(true);
     try {
       // Fetch business
-      const businessData = await fetchBusiness({owner_id: user.id})[0];
-      if (businessData) {
-        setBusiness(businessData);
+      const businessData = await fetchBusiness({owner_id: user.id});
+      if (businessData && businessData.length > 0) {
+        setbusiness(businessData[0]);
 
         // Fetch reviews
-        const reviewsData = await fetchReview({ business_id: businessData.id });
-        setReviews(reviewsData || []);
+        const reviewsData = await fetchReview({ business_id: businessData[0].id });
+        setReviews(reviewsData  || []);
 
         // Fetch products
-        const productsData = await fetchProducts(businessData.id);
+        const productsData = await fetchProducts(businessData[0].id);
         setProducts(productsData || []);
 
         // Fetch events
-        const eventsData = await fetchEvents(businessData.id);
+        const eventsData = await fetchEvents(businessData[0].id);
         setEvents(eventsData || []);
 
         // Calculate average rating
@@ -81,13 +81,13 @@ const Dashboard = () => {
         const { count: favoritesCount } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
-          .contains("favorite_businesses", [businessData.id]);
+          .contains("favorite_businesses", [business.id]);
 
         // Count messages (placeholder - would need a messages table)
         const messagesCount = 0;
 
         setStats({
-          views: businessData.user_views || 0,
+          views: business.user_views || 0,
           messages: messagesCount,
           favorites: favoritesCount || 0,
           avgRating: Math.round(avgRating * 10) / 10,
@@ -201,7 +201,7 @@ const Dashboard = () => {
             </Button>
             {business && (
               <Button className="gap-2" asChild>
-                <Link to={`/business/${business.id}`} state={{ business }}>
+                <Link to={`/business/${business.id}`} state={{ business: business }}>
                   View Public Profile
                 </Link>
               </Button>
@@ -457,8 +457,8 @@ const Dashboard = () => {
                   <TrendingUp className="h-4 w-4" />
                   Promote Business
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start gap-2"
                   onClick={() => navigate("/create-business")}
                 >

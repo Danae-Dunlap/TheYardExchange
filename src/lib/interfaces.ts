@@ -1,3 +1,5 @@
+import {z} from "zod"; 
+
 /**
  * Interfaces to represent possible search filters for querying databases
  */
@@ -28,9 +30,9 @@ export type Business = {
     description?: string;
     logo_url?: string;
     products?: Product[];
-    location?: string;
+    location: Location;
     contact_info?: ContactInfo;
-    hours_of_operation: string;
+    hours_of_operation: BusinessHours;
     deal?: string;
     rating?: number;
     tags?: string[];
@@ -101,6 +103,22 @@ export type ContactInfo = {
     facebook?: string,
 }
 
+interface DayHours {
+  open: string;
+  close: string;
+  is_open: boolean;
+}
+
+export interface BusinessHours{
+  sunday: DayHours, 
+  monday: DayHours, 
+  tuesday: DayHours, 
+  wednesday: DayHours, 
+  thursday: DayHours, 
+  friday: DayHours, 
+  saturday: DayHours,
+}
+
 /** Interfaces for choice values used in front end */
 export enum Category {
     Default = 'None',
@@ -116,10 +134,25 @@ export enum Category {
     Entertainment = "Entertainment"
 }
 
-
 export enum SortingFilters {
     Highest_Rated = 'Highest Rated',
     Price_Low_High = 'Price: Low to High',
     Price_High_Low = 'Price: High to Low'
 }
 
+export enum Location {
+    Drew = "Drew Hall", 
+    CHN = "College Hall North", 
+    CHS = "College Hall South",
+    Annex = "Annex",
+    Cook = "Cook Hall",
+    West = "Towers - West", 
+    East = "Towers - East",
+    Quad = "Quad",
+    Axis = "Axis",
+    MD = "Off Campus - Maryland", 
+    VA = "Off Campus - Virginia",
+    DC = "Off Campus - District of Columbia", 
+    Other = "Other", 
+    Anon = "Contact Owner for Details"
+}

@@ -46,10 +46,10 @@ export type Database = {
           created_at: string
           deal: string | null
           description: string | null
-          hours_of_operation: string
+          hours_of_operation: Json | null
           id: string
           is_featured: boolean
-          location: string | null
+          location: Database["public"]["Enums"]["location"] | null
           logo_url: string | null
           most_popular_products: string[] | null
           name: string
@@ -66,10 +66,10 @@ export type Database = {
           created_at?: string
           deal?: string | null
           description?: string | null
-          hours_of_operation?: string
+          hours_of_operation?: Json | null
           id?: string
           is_featured?: boolean
-          location?: string | null
+          location?: Database["public"]["Enums"]["location"] | null
           logo_url?: string | null
           most_popular_products?: string[] | null
           name: string
@@ -85,10 +85,10 @@ export type Database = {
           created_at?: string
           deal?: string | null
           description?: string | null
-          hours_of_operation?: string
+          hours_of_operation?: Json | null
           id?: string
           is_featured?: boolean
-          location?: string | null
+          location?: Database["public"]["Enums"]["location"] | null
           logo_url?: string | null
           most_popular_products?: string[] | null
           name?: string
@@ -354,6 +354,21 @@ export type Database = {
         | "Tech"
         | "Consumer Goods"
         | "None"
+      location:
+        | "Drew Hall"
+        | "College Hall North"
+        | "College Hall South"
+        | "Annex"
+        | "Cook Hall"
+        | "Towers - West"
+        | "Towers - East"
+        | "Quad"
+        | "Axis"
+        | "Other"
+        | "Contact Owner for Details"
+        | "Off Campus - Maryland"
+        | "Off Campus - Virginia"
+        | "Off Campus - District of Columbia"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -497,6 +512,22 @@ export const Constants = {
         "Tech",
         "Consumer Goods",
         "None",
+      ],
+      location: [
+        "Drew Hall",
+        "College Hall North",
+        "College Hall South",
+        "Annex",
+        "Cook Hall",
+        "Towers - West",
+        "Towers - East",
+        "Quad",
+        "Axis",
+        "Other",
+        "Contact Owner for Details",
+        "Off Campus - Maryland",
+        "Off Campus - Virginia",
+        "Off Campus - District of Columbia",
       ],
     },
   },

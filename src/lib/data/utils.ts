@@ -1,15 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
-import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessEvent, ContactInfo} from "../interfaces";
+import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, Location, BusinessEvent, ContactInfo} from "../interfaces";
 
 /**
  * Fetch business data from the database.
  *
  * @param filters - The query parameters to filter businesses.
  * @param search_string - The string used to search in business name, description, category, and tags
+ * @param is_featured - Used to fetch featured businesses
+ * @param owner_id - Used to fetch businesses by owner ID
  * @returns A promise that resolves to an array of business data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchBusiness(filters?: BusinessQuery, search_string?: string, is_featured?:boolean): Promise<Business[] | null> {
+export async function fetchBusiness(filters?: BusinessQuery, search_string?: string, is_featured?:boolean, owner_id?: string): Promise<Business[] | null> {
     
     let query = supabase.from('businesses').select('*');
 
@@ -23,6 +25,8 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
         if(filters.business_id){query = query.eq('id', filters.business_id);
         }
     }
+
+    if(owner_id){query = query.eq('owner_id', owner_id);}
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
     if (!data) {return null;}
@@ -53,6 +57,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             owner_id: business.owner_id,
             owner_name: ownerName,
             category: business.category,
+            location: business.location,
             description: business.description,
             logo_url: logoUrl,
             contact_info: business.contact_info ? (business.contact_info as ContactInfo) : undefined,
@@ -62,7 +67,6 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             tags: business.tags,
             user_views: Number(business.user_views || 0),
             most_popular_products: business.most_popular_products || null,
-            user_sentiments: business.user_sentiments,
             reviews: business.reviews,
         }
     }));
@@ -117,6 +121,7 @@ export async function insertBusiness(business: Business): Promise<void> {
         price_range: business.price_range || null,
         user_views: business.user_views || 0,
         most_popular_products: business.most_popular_products || null,
+        location: business.location,
     }); 
 
     const {error: userError} = await supabase.from('profiles').update({
@@ -146,7 +151,6 @@ export async function updateBusiness(business: Business): Promise<void> {
         price_range: business.price_range || null,
         user_views: business.user_views,
         most_popular_products: business.most_popular_products,
-        user_sentiments: business.user_sentiments || null,
     }).eq('id', business.id);
 
     if(error){throw new Error(`Error updating business: ${error.message}`);}
@@ -200,7 +204,6 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean): Pro
             duration: product.duration,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
-            user_sentiments: product.user_sentiments || null,
         }
     }));
 
@@ -253,13 +256,14 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         tags: product.tags || null,
         reviews: product.reviews || null,
         user_views: product.user_views || 0,
-        user_sentiments: product.user_sentiments || null,
         is_service: product.is_service || false,
         duration: product.duration || null,
         category: product.tags?.[0] || null, // Use first tag as category if available
     }); 
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
+
+    updatePriceRange(product);
 }
 
 /**
@@ -280,12 +284,13 @@ export async function updateProduct(product: Product): Promise<void> {
         tags: product.tags || null,
         reviews: product.reviews || null,
         user_views: product.user_views,
-        user_sentiments: product.user_sentiments || null,
     }).eq('id', product.id);
 
     const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
     if(error){throw new Error(`Error updating product: ${error.message}`);}
     if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
+
+    updatePriceRange(product);
 }
 
 /**
@@ -300,6 +305,34 @@ export async function deleteProduct(productId: string): Promise<void> {
 
     if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
     if(error){throw new Error(`Error deleting product: ${error.message}`);}
+}
+
+/**
+ * Helper function used to update business' price range whenever a new product is added
+ * 
+ * @param product - Object used to compare again price range
+ * @throws Error if fetch and/or update function fails.
+ */
+async function updatePriceRange(product: Product): Promise<void>{
+    const business = await fetchBusiness({business_id: product.business_id})[0];
+    
+    if(!business){throw new Error("Business not found for product update price range");}
+
+    const existingPriceRange = business.price_range;
+    let updatedPriceRange = [];
+    if(existingPriceRange && existingPriceRange.length >= 1){
+        const minPrice = Math.min(product.price, existingPriceRange[0]);
+        const maxPrice = Math.max(product.price, existingPriceRange[1]);
+        updatedPriceRange = [minPrice, maxPrice];
+    }else if (!existingPriceRange || existingPriceRange.length === 0){
+        updatedPriceRange = [product.price, product.price];
+    }
+
+    const {error} = await supabase.from('businesses').update({
+        price_range: updatedPriceRange
+    }).eq('id', product.business_id);
+
+    if(error){throw new Error(`Error updating business price range: ${error.message}`);}
 }
 
 /**
