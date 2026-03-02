@@ -32,7 +32,7 @@ interface UseBusinessFormOptions {
   isCreate: boolean;
   userId: string;
   existingBusiness?: Business | null;
-  onSuccess?: () => void;
+  onSuccess?: () => void | Promise<void>;
 }
 
 export const useBusinessForm = ({
@@ -171,6 +171,8 @@ export const useBusinessForm = ({
           title: "Business created!",
           description: "Your business is now listed and discoverable.",
         });
+
+        await onSuccess?.();
       } else {
         if (!existingBusiness) {
           throw new Error("Business not found");
@@ -196,9 +198,9 @@ export const useBusinessForm = ({
           title: "Business updated!",
           description: "Your business information has been updated.",
         });
-      }
 
-      onSuccess?.();
+        await onSuccess?.();
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({

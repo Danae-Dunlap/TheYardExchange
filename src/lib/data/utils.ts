@@ -252,9 +252,6 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         description: product.description || null,
         images: imagePath ? imagePath : null,
         price: product.price,
-        rating: product.rating || null,
-        tags: product.tags || null,
-        reviews: product.reviews || null,
         user_views: product.user_views || 0,
         is_service: product.is_service || false,
         duration: product.duration || null,
@@ -263,7 +260,8 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
 
-    updatePriceRange(product);
+    // Recalculate price range from all products to ensure accuracy
+    await recalculatePriceRange(product.business_id);
 }
 
 /**
@@ -280,9 +278,6 @@ export async function updateProduct(product: Product): Promise<void> {
         description: product.description || null,
         images:  product.image ? `${product.business_id}/images/${product.image}` : null,
         price: product.price,
-        rating: product.rating || null,
-        tags: product.tags || null,
-        reviews: product.reviews || null,
         user_views: product.user_views,
     }).eq('id', product.id);
 
@@ -290,7 +285,8 @@ export async function updateProduct(product: Product): Promise<void> {
     if(error){throw new Error(`Error updating product: ${error.message}`);}
     if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
 
-    updatePriceRange(product);
+    // Recalculate price range from all products to ensure accuracy
+    await recalculatePriceRange(product.business_id);
 }
 
 /**
@@ -300,39 +296,29 @@ export async function updateProduct(product: Product): Promise<void> {
  * @throws Error if the delete operation fails.
  */
 export async function deleteProduct(productId: string): Promise<void> {
+    // Get business_id before deleting product (needed for price range recalculation)
+    const { data: product, error: fetchError } = await supabase
+        .from('products')
+        .select('business_id')
+        .eq('id', productId)
+        .single();
+
+    if (fetchError) {
+        throw new Error(`Error fetching product: ${fetchError.message}`);
+    }
+
+    const businessId = product?.business_id;
+
     const {error: deleteImageError} = await supabase.storage.from('products').remove([`${productId}/image/`]);
     const {error} = await supabase.from('products').delete().eq('id', productId);
 
     if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
     if(error){throw new Error(`Error deleting product: ${error.message}`);}
-}
 
-/**
- * Helper function used to update business' price range whenever a new product is added
- * 
- * @param product - Object used to compare again price range
- * @throws Error if fetch and/or update function fails.
- */
-async function updatePriceRange(product: Product): Promise<void>{
-    const business = await fetchBusiness({business_id: product.business_id})[0];
-    
-    if(!business){throw new Error("Business not found for product update price range");}
-
-    const existingPriceRange = business.price_range;
-    let updatedPriceRange = [];
-    if(existingPriceRange && existingPriceRange.length >= 1){
-        const minPrice = Math.min(product.price, existingPriceRange[0]);
-        const maxPrice = Math.max(product.price, existingPriceRange[1]);
-        updatedPriceRange = [minPrice, maxPrice];
-    }else if (!existingPriceRange || existingPriceRange.length === 0){
-        updatedPriceRange = [product.price, product.price];
+    // Recalculate price range from remaining products
+    if (businessId) {
+        await recalculatePriceRange(businessId);
     }
-
-    const {error} = await supabase.from('businesses').update({
-        price_range: updatedPriceRange
-    }).eq('id', product.business_id);
-
-    if(error){throw new Error(`Error updating business price range: ${error.message}`);}
 }
 
 /**
@@ -507,4 +493,55 @@ export async function updateEvent(event: BusinessEvent): Promise<void> {
 export async function deleteEvent(eventId: string): Promise<void> {
     const {error} = await supabase.from('events').delete().eq('id', eventId);
     if(error){throw new Error(`Error deleting event: ${error.message}`);}
+}
+
+/**
+ * Recalculates the price range for a business based on ALL its products.
+ * This ensures the price range is always accurate and derived only from products.
+ * 
+ * @param businessId - The ID of the business to recalculate
+ * @returns The updated price range [min, max] or null if no products
+ * @throws Error if fetch or update fails
+ */
+export async function recalculatePriceRange(businessId: string): Promise<number[] | null> {
+    // Fetch all products for this business
+    const { data: products, error: fetchError } = await supabase
+        .from('products')
+        .select('price')
+        .eq('business_id', businessId);
+
+    if (fetchError) {
+        throw new Error(`Error fetching products for price range: ${fetchError.message}`);
+    }
+
+    // If no products, set price_range to null
+    if (!products || products.length === 0) {
+        const { error: updateError } = await supabase
+            .from('businesses')
+            .update({ price_range: null })
+            .eq('id', businessId);
+
+        if (updateError) {
+            throw new Error(`Error updating business price range: ${updateError.message}`);
+        }
+        return null;
+    }
+
+    // Calculate min and max from ALL products
+    const prices = products.map(p => p.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const updatedPriceRange = [minPrice, maxPrice];
+
+    // Update the business
+    const { error: updateError } = await supabase
+        .from('businesses')
+        .update({ price_range: updatedPriceRange })
+        .eq('id', businessId);
+
+    if (updateError) {
+        throw new Error(`Error updating business price range: ${updateError.message}`);
+    }
+
+    return updatedPriceRange;
 }

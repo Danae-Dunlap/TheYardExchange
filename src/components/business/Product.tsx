@@ -83,9 +83,6 @@ const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductPro
         image: validated.image ? validated.image.name : null,
         user_views: 0,
         is_fav: false,
-        rating: null,
-        reviews: null,
-        user_sentiments: null,
       };
 
       await insertProduct(product, validated.image || undefined);

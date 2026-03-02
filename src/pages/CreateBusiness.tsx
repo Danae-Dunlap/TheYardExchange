@@ -35,7 +35,7 @@ const CreateBusiness = () => {
   const { loading, handleSubmit } = useBusinessForm({
     isCreate: true,
     userId: user?.id || "",
-    onSuccess: () => {navigate("/dashboard"); refreshRoles()},
+    onSuccess: async () => {await refreshRoles(); navigate("/dashboard");},
   });
 
   useEffect(() => {

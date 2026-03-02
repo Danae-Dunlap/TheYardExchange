@@ -92,6 +92,13 @@ const Auth = () => {
       });
 
       if (error) {
+        let errorMessage = error.message;
+        
+        // Replace ugly password requirements with user-friendly message
+        if (errorMessage.includes("Password should contain at least one character of each")) {
+          errorMessage = "Password must contain at least: one lowercase letter, one uppercase letter, one number, and one special character.";
+        }
+        
         if (error.message.includes("already registered")) {
           toast({
             title: "Account exists",
@@ -101,7 +108,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Error",
-            description: error.message,
+            description: errorMessage,
             variant: "destructive"
           });
         }

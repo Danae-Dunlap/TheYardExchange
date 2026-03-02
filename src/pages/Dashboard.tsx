@@ -81,13 +81,13 @@ const Dashboard = () => {
         const { count: favoritesCount } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
-          .contains("favorite_businesses", [business.id]);
+          .contains("favorite_businesses", [businessData[0].id]);
 
         // Count messages (placeholder - would need a messages table)
         const messagesCount = 0;
 
         setStats({
-          views: business.user_views || 0,
+          views: businessData[0].user_views || 0,
           messages: messagesCount,
           favorites: favoritesCount || 0,
           avgRating: Math.round(avgRating * 10) / 10,
