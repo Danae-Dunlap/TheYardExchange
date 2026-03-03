@@ -1,84 +1,103 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { 
-  MapPin, Phone, Mail, MessageCircle, 
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  MapPin, Phone, Mail, MessageCircle,
   Clock, Star, DollarSign, Calendar, Share2,
   Flag, Heart, ChevronLeft, LayoutDashboard
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { ReviewSummary } from "@/components/ui/review-summary";
+import { ReviewList } from "@/components/ui/review-list";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchBusiness, calculateAverageRating, fetchReview } from "@/lib/data/utils";
+import type { Business } from "@/lib/interfaces";
 import bisonLogo from "@/assets/bison-logo.png";
+
+const services = [
+  { name: "Box Braids", price: "$150-200", duration: "3-4 hours" },
+  { name: "Silk Press", price: "$80-120", duration: "2-3 hours" },
+  { name: "Knotless Braids", price: "$180-250", duration: "4-5 hours" },
+  { name: "Natural Hair Care", price: "$60-100", duration: "1-2 hours" }
+];
+
+const businessHours = [
+  { day: "Monday", hours: "9:00 AM - 6:00 PM" },
+  { day: "Tuesday", hours: "9:00 AM - 6:00 PM" },
+  { day: "Wednesday", hours: "9:00 AM - 6:00 PM" },
+  { day: "Thursday", hours: "9:00 AM - 8:00 PM" },
+  { day: "Friday", hours: "9:00 AM - 8:00 PM" },
+  { day: "Saturday", hours: "10:00 AM - 5:00 PM" },
+  { day: "Sunday", hours: "Closed" },
+];
+
+const upcomingEvents = [
+  {
+    title: "Spring Hair Care Workshop",
+    date: "March 15, 2024",
+    description: "Learn protective styling techniques and hair care tips"
+  },
+  {
+    title: "Pop-up at Campus Event",
+    date: "March 22, 2024",
+    description: "Special campus pricing and quick styles available"
+  }
+];
 
 const BusinessDetail = () => {
   const navigate = useNavigate();
-  
-  const business = {
-    name: "StylesByJordan",
-    category: "Hair & Beauty",
-    owner: "Jordan Smith",
-    description: "Professional braiding, silk press, and natural hair care services. Specializing in protective styles and healthy hair maintenance for all hair types.",
-    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&h=500&fit=crop",
-    rating: 4.8,
-    reviews: 124,
-    distance: "0.3 miles",
-    priceRange: "$$",
-    location: "Near Founders Library",
-    phone: "(202) 555-0123",
-    email: "stylesbyjordan@email.com",
-    hours: "Mon-Sat: 9AM-7PM, Sun: Closed",
-    deal: "20% off first visit"
+  const { id: businessId } = useParams<{ id: string }>();
+  const { user } = useAuth();
+
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [reviewCount, setReviewCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!businessId) return;
+
+    const loadBusiness = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchBusiness({ id: businessId });
+        if (data && data.length > 0) {
+          setBusiness(data[0]);
+        }
+        const [rating, reviews] = await Promise.all([
+          calculateAverageRating(businessId),
+          fetchReview({ business_id: businessId }),
+        ]);
+        setAverageRating(rating);
+        setReviewCount(reviews?.length ?? 0);
+      } catch (err) {
+        console.error("Failed to load business:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBusiness();
+  }, [businessId]);
+
+  const handleReviewChange = async () => {
+    if (!businessId) return;
+    try {
+      const [rating, reviews] = await Promise.all([
+        calculateAverageRating(businessId),
+        fetchReview({ business_id: businessId }),
+      ]);
+      setAverageRating(rating);
+      setReviewCount(reviews?.length ?? 0);
+    } catch (err) {
+      console.error("Failed to recalculate rating:", err);
+    }
   };
-
-  const services = [
-    { name: "Box Braids", price: "$150-200", duration: "3-4 hours" },
-    { name: "Silk Press", price: "$80-120", duration: "2-3 hours" },
-    { name: "Knotless Braids", price: "$180-250", duration: "4-5 hours" },
-    { name: "Natural Hair Care", price: "$60-100", duration: "1-2 hours" }
-  ];
-
-  const reviews = [
-    {
-      id: 1,
-      author: "Sarah M.",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-      rating: 5,
-      date: "2 days ago",
-      text: "Amazing service! Jordan is so talented and professional. My braids lasted for weeks and looked perfect."
-    },
-    {
-      id: 2,
-      author: "Marcus T.",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-      rating: 5,
-      date: "1 week ago",
-      text: "Best silk press I've ever gotten! Will definitely be coming back."
-    },
-    {
-      id: 3,
-      author: "Tasha W.",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-      rating: 4,
-      date: "2 weeks ago",
-      text: "Great experience overall. Very clean workspace and friendly atmosphere."
-    }
-  ];
-
-  const upcomingEvents = [
-    {
-      title: "Spring Hair Care Workshop",
-      date: "March 15, 2024",
-      description: "Learn protective styling techniques and hair care tips"
-    },
-    {
-      title: "Pop-up at Campus Event",
-      date: "March 22, 2024",
-      description: "Special campus pricing and quick styles available"
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,9 +121,9 @@ const BusinessDetail = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate(-1)}
               className="gap-2"
             >
@@ -113,11 +132,11 @@ const BusinessDetail = () => {
             </Button>
             <Breadcrumb>
               <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/home">Home</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/home">Home</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
@@ -126,7 +145,7 @@ const BusinessDetail = () => {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{business.name}</BreadcrumbPage>
+                  <BreadcrumbPage>{business?.name ?? "Business"}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -140,35 +159,39 @@ const BusinessDetail = () => {
         </div>
       </div>
 
-      {/* Hero Image */}
-      <div className="relative h-[400px] overflow-hidden">
-        <img 
-          src={business.image} 
-          alt={business.name}
-          className="w-full h-full object-cover"
-        />
+      {/* Hero Section */}
+      <div className="relative h-[400px] overflow-hidden bg-muted">
+        {business?.logo_url && (
+          <img
+            src={business.logo_url}
+            alt={business.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 container mx-auto px-4 pb-8">
-          {business.deal && (
-            <Badge className="mb-4 bg-secondary text-secondary-foreground">
-              🎉 {business.deal}
-            </Badge>
-          )}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">{business.name}</h1>
-              <div className="flex items-center gap-4 text-foreground/90 mb-2">
-                <Badge variant="outline">{business.category}</Badge>
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-primary text-primary" />
-                  <span className="font-semibold">{business.rating}</span>
-                  <span className="text-muted-foreground">({business.reviews} reviews)</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{business.distance}</span>
-                </div>
-              </div>
+              {loading ? (
+                <>
+                  <Skeleton className="h-10 w-64 mb-2" />
+                  <Skeleton className="h-5 w-48" />
+                </>
+              ) : (
+                <>
+                  <h1 className="text-4xl font-bold text-foreground mb-2">{business?.name}</h1>
+                  <div className="flex items-center gap-4 text-foreground/90 mb-2">
+                    {business?.category && <Badge variant="outline">{business.category}</Badge>}
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-primary text-primary" />
+                      <span className="font-semibold">{averageRating > 0 ? averageRating.toFixed(1) : "No ratings"}</span>
+                      {reviewCount > 0 && (
+                        <span className="text-muted-foreground">({reviewCount} reviews)</span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="icon">
@@ -198,32 +221,48 @@ const BusinessDetail = () => {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="text-xl font-semibold text-foreground mb-4">About</h3>
-                    <p className="text-muted-foreground mb-6">{business.description}</p>
-                    
-                    <Separator className="my-6" />
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p className="font-medium text-foreground">Location</p>
-                          <p className="text-sm text-muted-foreground">{business.location}</p>
-                        </div>
+                    {loading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                        <Skeleton className="h-4 w-4/6" />
                       </div>
+                    ) : (
+                      <p className="text-muted-foreground mb-6">{business?.description ?? "No description available."}</p>
+                    )}
+
+                    <Separator className="my-6" />
+
+                    <div className="space-y-4">
                       <div className="flex items-start gap-3">
                         <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <p className="font-medium text-foreground">Hours</p>
-                          <p className="text-sm text-muted-foreground">{business.hours}</p>
+                          <div className="text-sm text-muted-foreground space-y-0.5">
+                            {businessHours.map(({ day, hours }) => (
+                              <p key={day}><span className="capitalize">{day}</span>: {hours}</p>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
                           <p className="font-medium text-foreground">Price Range</p>
-                          <p className="text-sm text-muted-foreground">{business.priceRange}</p>
+                          {loading ? (
+                            <Skeleton className="h-4 w-16 mt-1" />
+                          ) : (
+                            <p className="text-sm text-muted-foreground">{business?.price_range ? "$" + business.price_range : "—"}</p>
+                          )}
                         </div>
                       </div>
+                      {business?.tags && business.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {business.tags.map((tag) => (
+                            <Badge key={tag} variant="secondary">{tag}</Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -249,35 +288,15 @@ const BusinessDetail = () => {
               </TabsContent>
 
               <TabsContent value="reviews">
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <Card key={review.id}>
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <Avatar>
-                            <AvatarImage src={review.avatar} />
-                            <AvatarFallback>{review.author[0]}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <div>
-                                <p className="font-semibold text-foreground">{review.author}</p>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex">
-                                    {[...Array(review.rating)].map((_, i) => (
-                                      <Star key={i} className="h-3 w-3 fill-primary text-primary" />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">{review.date}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-muted-foreground">{review.text}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="space-y-6">
+                  <ReviewSummary rating={averageRating} reviewCount={reviewCount} />
+                  {businessId && (
+                    <ReviewList
+                      businessId={businessId}
+                      currentUserId={user?.id}
+                      onReviewChange={handleReviewChange}
+                    />
+                  )}
                 </div>
               </TabsContent>
 
@@ -314,18 +333,38 @@ const BusinessDetail = () => {
                     <MessageCircle className="h-4 w-4" />
                     Message Owner
                   </Button>
-                  <Button variant="outline" className="w-full gap-2">
-                    <Phone className="h-4 w-4" />
-                    Call
-                  </Button>
-                  <Button variant="outline" className="w-full gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email
-                  </Button>
+                  {business?.contact_info?.phone && (
+                    <Button variant="outline" className="w-full gap-2" asChild>
+                      <a href={`tel:${business.contact_info.phone}`}>
+                        <Phone className="h-4 w-4" />
+                        Call
+                      </a>
+                    </Button>
+                  )}
+                  {business?.contact_info?.email && (
+                    <Button variant="outline" className="w-full gap-2" asChild>
+                      <a href={`mailto:${business.contact_info.email}`}>
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </a>
+                    </Button>
+                  )}
+                  {!business?.contact_info?.phone && !business?.contact_info?.email && (
+                    <>
+                      <Button variant="outline" className="w-full gap-2">
+                        <Phone className="h-4 w-4" />
+                        Call
+                      </Button>
+                      <Button variant="outline" className="w-full gap-2">
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </Button>
+                    </>
+                  )}
                 </div>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div className="space-y-3">
                   <Button variant="ghost" className="w-full justify-start gap-2">
                     <MapPin className="h-4 w-4" />

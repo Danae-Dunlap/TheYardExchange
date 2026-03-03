@@ -2,6 +2,7 @@
  * Interfaces to represent possible search filters for querying databases
  */
 export type BusinessQuery = {
+    id?: string;
     category?: string;
     min_price?: number;
     max_price?: number;
@@ -69,6 +70,8 @@ export type Review = {
     business_id: string;
     rating: number;
     comment?: string | null;
+    product_id?: string | null;
+    created_at?: string;
 }
 
 /** Interfaces for choice values used in front end */
