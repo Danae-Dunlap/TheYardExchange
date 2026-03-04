@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import DetailSection from "@/components/business/Detail";
 import Sidebar from "@/components/business/Sidebar";
 
+
 const BusinessDetail = () => {
   const location = useLocation();
   const {user, profile} = useAuth();
@@ -21,21 +22,23 @@ const BusinessDetail = () => {
   useEffect(() => {
     const getBusinessDetails = async () => {
       const services = await fetchProducts(business.id);
-      setServices(services);
+      setServices(services || []);
       const reviews = await fetchReview({ business_id: business.id });
-      setReviews(reviews);
+      setReviews(reviews || []);
       const events = await fetchEvents(business.id);
-      setEvents(events);
-      const favorites = await fetchProducts(business.id, true); 
-      setFavorites(favorites);
+      setEvents(events || []);
+      const favorites = await fetchProducts(business.id, true);
+      setFavorites(favorites || []);
       
       const { error } = await supabase.from('businesses').update({ user_views: business.user_views + 1 }).eq('id', business.id);
       if(error) {console.error("Error updating user views:", error.message);}
     };
 
     const updateUserBehavior = async () => {
-      const newTags = business.tags ? [...profile.recent_tags.slice(business.tags.length - 1, 15), business.tags].flat() : profile.recent_tags;
-      const recentlyViewedBusinesses = profile.recently_viewed_businesses.includes(business.id) ? profile.recently_viewed_businesses : [...profile.recently_viewed_businesses, business.id];
+      if (!profile || !user) return;
+      const newTags = business.tags ? [...(profile.recent_tags ?? []).slice(business.tags.length - 1, 15), business.tags].flat() : (profile.recent_tags ?? []);
+      const recentlyViewed = profile.recently_viewed_businesses ?? [];
+      const recentlyViewedBusinesses = recentlyViewed.includes(business.id) ? recentlyViewed : [...recentlyViewed, business.id];
       const { error } = await supabase.from('profiles').update({ recent_tags: newTags, recently_viewed_businesses: recentlyViewedBusinesses }).eq('id', user.id);
       if(error) {console.error("Error updating recent behavior:", error.message);}
     }
@@ -51,7 +54,7 @@ const BusinessDetail = () => {
          
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <DetailSection business={business} favorites={favorites} services={services} reviews={reviews} events={events} />
+          <DetailSection business={business} favorites={favorites} services={services} events={events} />
           <Sidebar business={business} />
         </div>
       </div>
