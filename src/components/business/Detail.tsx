@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Product } from "./Product";
@@ -23,7 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { fetchComparableProducts } from "@/lib/data/utils";
+import { Label } from "../ui/label";
+import { Badge } from "../ui/badge";
+import { fetchBusiness, fetchProducts } from "@/lib/data/utils";
 
 export function priceRange(price_range) {
     if (price_range && price_range.length > 1) {
@@ -35,28 +37,63 @@ export function priceRange(price_range) {
 
 const DetailSection = ({ business, favorites, services, reviews, events }) => {
   const { user } = useAuth();
-  const [selectedService, setSelectedService] = useState(null);
+  const [productDetailOpen, setProductDetailOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [comparisonOpen, setComparisonOpen] = useState(false);
-  const [comparisons, setComparisons] = useState<any[] | null>(null);
-  const [selectedStoreId, setSelectedStoreId] = useState<string | "all">("all");
-  const [loadingComparisons, setLoadingComparisons] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>(null);
+  const [storeProducts, setStoreProducts] = useState([]);
+  const [loadingStoreProducts, setLoadingStoreProducts] = useState(false);
+  const [compareWithProduct, setCompareWithProduct] = useState(null);
 
-  const openComparison = async (service: any) => {
-    setSelectedService(service);
+  const openProductDetail = (service) => {
+    setSelectedProduct(service);
+    setProductDetailOpen(true);
+  };
+
+  const openComparisonFromDetail = () => {
+    if (!selectedProduct) return;
+    setSelectedService(selectedProduct);
+    setProductDetailOpen(false);
     setComparisonOpen(true);
-    setLoadingComparisons(true);
+    setSelectedStoreId(business.id);
+    setCompareWithProduct(null);
+    setStoreProducts(services);
+  };
+
+  const loadStores = async () => {
     try {
-      const data = await fetchComparableProducts(service.name);
-      setComparisons(data);
-      // Default to current store
-      setSelectedStoreId(business.id);
-    } catch (error) {
-      console.error("Error fetching comparable products:", error);
-      setComparisons(null);
-    } finally {
-      setLoadingComparisons(false);
+      const data = await fetchBusiness();
+      if (data && data.length > 0) {
+        setStores(data.map((b) => ({ id: b.id, name: b.name })));
+      }
+    } catch (e) {
+      console.error("Error loading stores:", e);
     }
   };
+
+  useEffect(() => {
+    if (comparisonOpen) {
+      if (stores.length === 0) {
+        setStores([{ id: business.id, name: business.name }]);
+        loadStores();
+      }
+    }
+  }, [comparisonOpen]);
+
+  useEffect(() => {
+    if (!comparisonOpen || !selectedStoreId) return;
+    if (selectedStoreId === business.id) {
+      setStoreProducts(services);
+      return;
+    }
+    setLoadingStoreProducts(true);
+    fetchProducts(selectedStoreId)
+      .then((list) => setStoreProducts(list ?? []))
+      .catch(() => setStoreProducts([]))
+      .finally(() => setLoadingStoreProducts(false));
+  }, [comparisonOpen, selectedStoreId, business.id, services]);
 
   
 
@@ -114,7 +151,13 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
                   <div className="space-y-4 mb-6">
                     <h4 className="font-medium text-foreground mb-4">Crowd Favorites</h4>
                     {favorites.map((favorite, index) => (
-                      <Product key={index} service={favorite} />
+                      <div
+                        key={favorite.id || index}
+                        onClick={() => openProductDetail(favorite)}
+                        className="cursor-pointer"
+                      >
+                        <Product service={favorite} />
+                      </div>
                     ))}
                   </div>
                   <hr />
@@ -123,7 +166,11 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
               <div className="space-y-4">
                 {favorites.length > 0 && <h4 className="font-medium text-foreground my-4">All Services</h4>}
                 {services.map((service, index) => (
-                  <div key={service.id || index} onClick={() => openComparison(service)} className="cursor-pointer">
+                  <div
+                    key={service.id || index}
+                    onClick={() => openProductDetail(service)}
+                    className="cursor-pointer"
+                  >
                     <Product service={service} />
                   </div>
                 ))}
@@ -164,113 +211,187 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
         </TabsContent>
       </Tabs>
 
-      {/* Comparison dialog */}
-      {selectedService && (
-        <Dialog open={comparisonOpen} onOpenChange={setComparisonOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      {/* Product detail dialog */}
+      {selectedProduct && (
+        <Dialog open={productDetailOpen} onOpenChange={setProductDetailOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Compare prices for {selectedService.name}</DialogTitle>
+              <DialogTitle>{selectedProduct.name}</DialogTitle>
               <DialogDescription>
-                Compare this {selectedService.is_service ? "service" : "product"} across different stores.
+                {business.name} · {selectedProduct.is_service ? "Service" : "Product"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {selectedProduct.image && (
+                <img
+                  src={selectedProduct.image}
+                  alt={selectedProduct.name}
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  {selectedProduct.is_service ? "Service" : "Product"}
+                </Badge>
+              </div>
+              {selectedProduct.description && (
+                <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
+              )}
+              <div className="flex gap-4 text-sm">
+                <span className="font-semibold text-foreground">
+                  ${Number(selectedProduct.price).toFixed(2)}
+                </span>
+                {selectedProduct.duration && (
+                  <span className="text-muted-foreground">{selectedProduct.duration}</span>
+                )}
+              </div>
+              {selectedProduct.tags && selectedProduct.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedProduct.tags.map((tag, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <Button onClick={openComparisonFromDetail} className="w-full">
+                Compare with another item
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Comparison dialog: side-by-side with store dropdown and list */}
+      {selectedService && (
+        <Dialog
+          open={comparisonOpen}
+          onOpenChange={(open) => {
+            setComparisonOpen(open);
+            if (!open) setCompareWithProduct(null);
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Compare items</DialogTitle>
+              <DialogDescription>
+                Compare this item with another from any store. Select a store, then pick an item to compare side by side.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="border border-border rounded-lg p-4">
-                <h3 className="font-semibold text-foreground mb-1">
-                  {selectedService.name} – {business.name}
-                </h3>
-                {selectedService.description && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {selectedService.description}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border border-border rounded-lg p-4">
+                  <h4 className="text-xs font-medium text-muted-foreground mb-1">Selected item</h4>
+                  <h3 className="font-semibold text-foreground mb-1">{selectedService.name}</h3>
+                  <p className="text-xs text-muted-foreground mb-1">{business.name}</p>
+                  {selectedService.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{selectedService.description}</p>
+                  )}
+                  <p className="text-sm">
+                    Price: <span className="font-semibold">${Number(selectedService.price).toFixed(2)}</span>
+                    {selectedService.duration && <> · {selectedService.duration}</>}
                   </p>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  Price: <span className="font-semibold">${selectedService.price.toFixed(2)}</span>
-                  {selectedService.duration && <> • {selectedService.duration}</>}
-                </p>
+                  {selectedService.image && (
+                    <img
+                      src={selectedService.image}
+                      alt={selectedService.name}
+                      className="mt-2 h-24 w-full object-cover rounded"
+                    />
+                  )}
+                </div>
+                <div className="border border-border rounded-lg p-4">
+                  {compareWithProduct ? (
+                    <>
+                      <h4 className="text-xs font-medium text-muted-foreground mb-1">Compare with</h4>
+                      <h3 className="font-semibold text-foreground mb-1">{compareWithProduct.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {selectedStoreId === business.id ? business.name : stores.find((s) => s.id === selectedStoreId)?.name}
+                      </p>
+                      {compareWithProduct.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{compareWithProduct.description}</p>
+                      )}
+                      <p className="text-sm">
+                        Price: <span className="font-semibold">${Number(compareWithProduct.price).toFixed(2)}</span>
+                        {compareWithProduct.duration && <> · {compareWithProduct.duration}</>}
+                      </p>
+                      {compareWithProduct.image && (
+                        <img
+                          src={compareWithProduct.image}
+                          alt={compareWithProduct.name}
+                          className="mt-2 h-24 w-full object-cover rounded"
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select a store and an item below to compare.</p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Compare with store</Label>
+                <Label className="text-sm">Store to compare with</Label>
                 <Select
-                  value={selectedStoreId}
-                  onValueChange={(val) => setSelectedStoreId(val as string | "all")}
+                  value={selectedStoreId ?? ""}
+                  onValueChange={(val) => {
+                    setSelectedStoreId(val);
+                    setCompareWithProduct(null);
+                  }}
                 >
                   <SelectTrigger className="w-full md:w-64">
-                    <SelectValue placeholder="Select store to compare" />
+                    <SelectValue placeholder="Select store" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Stores</SelectItem>
-                    {comparisons &&
-                      Array.from(
-                        new Map(
-                          comparisons.map((c) => [
-                            c.businesses?.id,
-                            { id: c.businesses?.id, name: c.businesses?.name },
-                          ]),
-                        ).values(),
-                      )
-                        .filter((s) => s.id)
-                        .map((store) => (
-                          <SelectItem key={store.id} value={store.id}>
-                            {store.name}
-                          </SelectItem>
-                        ))}
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                        {store.id === business.id ? " (this store)" : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="font-semibold text-foreground">Comparable offers</h4>
-                {loadingComparisons ? (
-                  <p className="text-sm text-muted-foreground">Loading comparisons...</p>
-                ) : !comparisons || comparisons.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No comparable products found yet.
-                  </p>
-                ) : (
-                  comparisons
-                    .filter((c) =>
-                      selectedStoreId === "all"
-                        ? true
-                        : c.businesses?.id === selectedStoreId,
-                    )
-                    .sort((a, b) => Number(a.price) - Number(b.price))
-                    .map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-start gap-4 p-3 border border-border rounded-lg"
-                      >
-                        {c.images && (
-                          <img
-                            src={Array.isArray(c.images) ? c.images[0] : c.images}
-                            alt={c.product_name}
-                            className="h-16 w-16 rounded-lg object-cover"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-semibold text-foreground">
-                              {c.product_name}
-                            </p>
-                            <span className="text-sm font-semibold text-foreground">
-                              ${Number(c.price).toFixed(2)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            Store: {c.businesses?.name || "Unknown"}
-                          </p>
-                          {c.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {c.description}
-                            </p>
+              {selectedStoreId && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Items from selected store</Label>
+                  {loadingStoreProducts ? (
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  ) : storeProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No items in this store.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {storeProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setCompareWithProduct(p)}
+                          className={`flex items-start gap-2 p-3 border rounded-lg text-left transition-colors ${
+                            compareWithProduct?.id === p.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          {p.image && (
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              className="h-12 w-12 rounded object-cover shrink-0"
+                            />
                           )}
-                        </div>
-                      </div>
-                    ))
-                )}
-              </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground text-sm truncate">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              ${Number(p.price).toFixed(2)}
+                              {p.duration && ` · ${p.duration}`}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

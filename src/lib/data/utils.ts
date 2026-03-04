@@ -202,13 +202,13 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean): Pro
             name: product.product_name,
             business_id: product.business_id,
             description: product.description,
-            images: product.images,
+            image: product.images ?? undefined,
             price: Number(product.price),
             rating: product.rating ? Number(product.rating) : null,
             tags: product.tags,
             is_fav: product.is_favorite,
             is_service: product.is_service,
-            duration: product.duration,
+            duration: product.duration ?? "",
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
         }
@@ -301,24 +301,46 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
 
 /**
  * Update an existing product in the database.
- * 
- * @param product 
+ *
+ * @param product Product data (id, business_id, etc.)
+ * @param imageFile Optional new image file to upload; if not provided, existing image URL is kept.
  * @throws Error if the update operation fails.
  */
-export async function updateProduct(product: Product): Promise<void> {
-    const fileName = `${product.id}/image/${product.image}`;
-    const {error} = await supabase.from('products').update({
-        name: product.name,
+export async function updateProduct(product: Product, imageFile?: File): Promise<void> {
+    let imagePath: string | null = product.image || null;
+
+    if (imageFile) {
+        const fileName = `${product.id}/image/${imageFile.name}`;
+        const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(fileName, imageFile, {
+                cacheControl: '3600',
+                upsert: true,
+            });
+        if (uploadError) {
+            throw new Error(`Error uploading product image: ${uploadError.message}`);
+        }
+        const { data: imageData } = await supabase.storage
+            .from('products')
+            .getPublicUrl(fileName);
+        imagePath = imageData?.publicUrl || fileName;
+    }
+
+    const { error } = await supabase.from('products').update({
+        product_name: product.name,
         business_id: product.business_id,
         description: product.description || null,
-        images:  product.image ? `${product.business_id}/images/${product.image}` : null,
+        images: imagePath,
         price: product.price,
-        user_views: product.user_views,
+        user_views: product.user_views ?? 0,
+        is_service: product.is_service ?? false,
+        duration: product.duration || null,
+        category: product.tags?.[0] || null,
     }).eq('id', product.id);
 
-    const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
-    if(error){throw new Error(`Error updating product: ${error.message}`);}
-    if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
+    if (error) {
+        throw new Error(`Error updating product: ${error.message}`);
+    }
 }
 
 /**

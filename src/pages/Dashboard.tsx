@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus, Trash2
+  BarChart3, Clock, Lightbulb, Store, Plus, Trash2, Pencil
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteProduct } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
-import { AddProduct } from "@/components/business/Product";
+import { AddProduct, EditProduct } from "@/components/business/Product";
 import { AddEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [stats, setStats] = useState({
     views: 0,
@@ -364,15 +365,24 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="ml-4"
-                              onClick={() => handleDeleteProduct(product.id)}
-                              title="Delete product/service"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setEditingProduct(product)}
+                                title="Edit product/service"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                title="Delete product/service"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -517,6 +527,13 @@ const Dashboard = () => {
             businessId={business.id}
             open={addProductOpen}
             onOpenChange={setAddProductOpen}
+            onSuccess={loadBusinessData}
+          />
+          <EditProduct
+            businessId={business.id}
+            product={editingProduct}
+            open={!!editingProduct}
+            onOpenChange={(open) => !open && setEditingProduct(null)}
             onSuccess={loadBusinessData}
           />
           <AddEvent
