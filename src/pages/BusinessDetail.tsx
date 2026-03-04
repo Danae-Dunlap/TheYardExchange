@@ -29,13 +29,13 @@ const BusinessDetail = () => {
 
       // Fetch business details after business is loaded
       const servicesData = await fetchProducts(businessRecord.id);
-      setServices(servicesData);
+      setServices(servicesData || []);
       const reviewsData = await fetchReview({ business_id: businessRecord.id });
-      setReviews(reviewsData);
+      setReviews(reviewsData || []);
       const eventsData = await fetchEvents(businessRecord.id);
-      setEvents(eventsData);
+      setEvents(eventsData || []);
       const favoritesData = await fetchProducts(businessRecord.id, true);
-      setFavorites(favoritesData);
+      setFavorites(favoritesData || []);
       
       const { error } = await supabase.from('businesses').update({ user_views: businessRecord.user_views + 1 }).eq('id', businessRecord.id);
       if(error) {console.error("Error updating user views:", error.message);}
