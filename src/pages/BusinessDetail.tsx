@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import DetailSection from "@/components/business/Detail";
 import Sidebar from "@/components/business/Sidebar";
 
+
 const BusinessDetail = () => {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
@@ -16,11 +17,11 @@ const BusinessDetail = () => {
   const [business, setBusiness] = useState<Business | null>(
     (location.state as { business?: Business })?.business ?? null
   );
-  const [loading, setLoading] = useState(!(location.state as { business?: Business })?.business && !!id);
   const [services, setServices] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
+  const [loading, setLoading] = useState(!(location.state as { business?: Business })?.business && !!id);
 
   useEffect(() => {
     if (!id) return;

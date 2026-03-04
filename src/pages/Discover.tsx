@@ -60,8 +60,11 @@ const Discover = () => {
   useEffect(() => {
     if (!deferredSearchQuery.trim()) return;
     const updateRecentSearches = async () => {
+      const recentSearches = new Set<string>(profile?.recent_searches.slice(1, 15) || []);
+      recentSearches.add(deferredSearchQuery);
+
       const { error } = await supabase.from('profiles').update({
-        recent_searches: [...(profile?.recent_searches || []), deferredSearchQuery]
+        recent_searches: Array.from(recentSearches)
       }).eq('id', profile?.id);
       if (error) {
         console.error("Error updating recent searches:", error);

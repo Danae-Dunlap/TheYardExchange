@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Product } from "./Product";
-import Review from "./Review";
 import { Separator } from "../ui/separator";
-import { Button } from "../ui/button";
 import { Event } from "./Event";
 import { Clock, MapPin, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,15 +23,11 @@ import {
 } from "../ui/select";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { ReviewList } from "@/components/ui/review-list";
+import { priceRange } from "@/lib/utils";
 import { fetchBusiness, fetchProducts } from "@/lib/data/utils";
 
-export function priceRange(price_range) {
-    if (price_range && price_range.length > 1) {
-      return <span className="text-base text-muted-foreground"> {price_range[0]}-{price_range[1]}</span>;
-    } else if (price_range && price_range.length === 1) {
-      return <span className="text-base text-muted-foreground"> {price_range[0]}</span>;
-    }
-}
 
 const DetailSection = ({ business, favorites, services, reviews, events }) => {
   const { user } = useAuth();
@@ -95,7 +89,6 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
       .finally(() => setLoadingStoreProducts(false));
   }, [comparisonOpen, selectedStoreId, business.id, services]);
 
-  
 
   return (
     <div className="lg:col-span-2">
@@ -134,7 +127,7 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
                   <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="font-medium text-foreground">Price Range</p>
-                    {priceRange(business.price_range)}
+                    <span className="text-base text-muted-foreground">{priceRange(business.price_range)}</span>
                   </div>
                 </div>
               </div>
@@ -183,18 +176,7 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold text-foreground mb-4">Reviews</h3>
-              {reviews.length === 0 ? (
-                <p className="text-muted-foreground">No reviews yet.</p>
-              ) : (
-                reviews.map((review, index) => (
-                  <Review key={index} review={review} />
-                ))
-              )}
-              {user && user.id && !reviews.some(review => review.user_id === user.id) && (
-                <Button className="mt-4" variant="outline" size="sm">
-                  Add Review
-                </Button>
-              )}
+              <ReviewList businessId={business.id} currentUserId={user?.id} />
             </CardContent>
           </Card>
         </TabsContent>

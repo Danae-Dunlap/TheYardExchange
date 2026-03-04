@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: UserProfile | null; 
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+  refreshProfileData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,12 +45,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: profile.student_email,
             avatar_url: profile.avatar_url,
             bio: profile.bio,
-            reviews: profile.reviews || [],
-            favorite_businesses: profile.favorite_businesses || [],
-            recently_viewed_businesses: profile.recently_viewed_businesses || [],
-            favorite_products: profile.favorite_products || [],
-            recent_searches: profile.recent_searches || [],
-            recent_tags: profile.recent_tags || []
+            favorite_businesses: profile.favorite_businesses ? profile.favorite_businesses : [],
+            recently_viewed_businesses: profile.recently_viewed_businesses ? profile.recently_viewed_businesses : [],
+            favorite_products: profile.favorite_products ? profile.favorite_products : [],
+            recent_searches: profile.recent_searches ? profile.recent_searches : [],
+            recent_tags: profile.recent_tags ? profile.recent_tags : []
         }
     }));
 
@@ -61,6 +61,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await fetchUserRoles(user.id);
     }
   }, [user, fetchUserRoles]);
+
+  const refreshProfileData = useCallback(async () => {
+    if(user){
+      await fetchProfile(user.id);
+    }
+    
+  }, [user, fetchProfile]);
 
   useEffect(() => {
     // Initial session check
@@ -91,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isBusinessOwner, loading, signOut, refreshRoles, profile }}>
+    <AuthContext.Provider value={{ user, isBusinessOwner, loading, signOut, refreshRoles, profile, refreshProfileData}}>
       {children}
     </AuthContext.Provider>
   );

@@ -91,19 +91,13 @@ const Dashboard = () => {
           ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
           : 0;
 
-        // Count favorites (users who favorited this business)
-        const { count: favoritesCount } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .contains("favorite_businesses", [businessData[0].id]);
-
         // Count messages (placeholder - would need a messages table)
         const messagesCount = 0;
 
         setStats({
           views: businessData[0].user_views || 0,
           messages: messagesCount,
-          favorites: favoritesCount || 0,
+          favorites: businessData[0].users_favorited || 0,
           avgRating: Math.round(avgRating * 10) / 10,
         });
       }
@@ -525,6 +519,7 @@ const Dashboard = () => {
         <>
           <AddProduct
             businessId={business.id}
+            businessName={business.name}
             open={addProductOpen}
             onOpenChange={setAddProductOpen}
             onSuccess={loadBusinessData}
@@ -538,6 +533,7 @@ const Dashboard = () => {
           />
           <AddEvent
             businessId={business.id}
+            businessName={business.name}
             open={addEventOpen}
             onOpenChange={setAddEventOpen}
             onSuccess={loadBusinessData}

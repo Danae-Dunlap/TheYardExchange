@@ -55,9 +55,11 @@ export type Database = {
           name: string
           owner_id: string
           price_range: number[] | null
+          rating: number | null
           tags: string[] | null
           updated_at: string
           user_views: number | null
+          users_favorited: number
           find_business: string | null
         }
         Insert: {
@@ -75,9 +77,11 @@ export type Database = {
           name: string
           owner_id: string
           price_range?: number[] | null
+          rating?: number | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
+          users_favorited?: number
         }
         Update: {
           category?: Database["public"]["Enums"]["business_category"]
@@ -94,9 +98,11 @@ export type Database = {
           name?: string
           owner_id?: string
           price_range?: number[] | null
+          rating?: number | null
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
+          users_favorited?: number
         }
         Relationships: [
           {
@@ -111,6 +117,7 @@ export type Database = {
       events: {
         Row: {
           business_id: string | null
+          business_name: string | null
           created_at: string
           description: string
           end_date: string
@@ -121,6 +128,7 @@ export type Database = {
         }
         Insert: {
           business_id?: string | null
+          business_name?: string | null
           created_at?: string
           description: string
           end_date: string
@@ -131,6 +139,7 @@ export type Database = {
         }
         Update: {
           business_id?: string | null
+          business_name?: string | null
           created_at?: string
           description?: string
           end_date?: string
@@ -159,6 +168,7 @@ export type Database = {
       products: {
         Row: {
           business_id: string
+          business_name: string | null
           category: string | null
           created_at: string
           description: string | null
@@ -174,6 +184,7 @@ export type Database = {
         }
         Insert: {
           business_id: string
+          business_name?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
@@ -189,6 +200,7 @@ export type Database = {
         }
         Update: {
           business_id?: string
+          business_name?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
@@ -273,6 +285,7 @@ export type Database = {
           created_at: string
           id: string
           is_anon: boolean
+          product_id: string | null
           rating: number
           user_id: string
           username: string
@@ -283,6 +296,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_anon?: boolean
+          product_id?: string | null
           rating: number
           user_id: string
           username?: string
@@ -293,6 +307,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_anon?: boolean
+          product_id?: string | null
           rating?: number
           user_id?: string
           username?: string
@@ -303,6 +318,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -333,6 +355,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_business_price_range: {
+        Args: { business_id_input: string }
+        Returns: undefined
+      }
       find_business: {
         Args: { "": Database["public"]["Tables"]["businesses"]["Row"] }
         Returns: {
