@@ -54,7 +54,7 @@ const BusinessDetail = () => {
          
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <DetailSection business={business} favorites={favorites} services={services} reviews={reviews} events={events} />
+          <DetailSection business={business} favorites={favorites} services={services} events={events} />
           <Sidebar business={business} />
         </div>
       </div>
