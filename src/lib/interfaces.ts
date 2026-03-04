@@ -1,12 +1,16 @@
+import {z} from "zod"; 
+
 /**
  * Interfaces to represent possible search filters for querying databases
  */
 export type BusinessQuery = {
-    id?: string;
+    owner_id?: string;
+    business_id?: string;
     category?: string;
-    min_price?: number;
-    max_price?: number;
+    min_price?: string;
+    max_price?: string;
     tags?: string[];
+    is_featured?:boolean;
 }
 
 export type ReviewQuery = {
@@ -22,56 +26,99 @@ export type Business = {
     name: string; 
     owner_id: string; 
     owner_name: string;
-    category: string; 
-    description?: string | null;
-    logo_url?: string | null;
-    products?: string[] | null; //array of product ids
-    contact_info?: Record<string, any> | null;
-    hours_of_operation?: Record<string, any> | null;
+    category: Category; 
+    description?: string;
+    logo_url?: string;
+    products?: Product[];
+    location: Location;
+    contact_info?: ContactInfo;
+    hours_of_operation: BusinessHours;
+    deal?: string;
     rating?: number;
-    tags?: string[] | null;
-    price_range?: string | null;
+    tags?: string[];
+    price_range?: number[];
     user_views: number;
     most_popular_products: string[];
-    user_sentiments: string | null;
-    reviews: string[] | null;
+    user_sentiments?: string;
 }
    
 export type UserProfile = {
     id: string; 
     username: string; 
     email: string;
-    full_name?: string | null;
-    avatar_url?: string | null;
-    bio?: string | null;
-    reviews?: string[] | null;
-    favorite_businesses?: string[] | null; 
-    recently_viewed_businesses?: string[] | null;
-    favorite_products?: string[] | null;
+    full_name?: string;
+    avatar_url?: string;
+    bio?: string;
+    reviews?: string[];
+    favorite_businesses?: string[]; 
+    recently_viewed_businesses?: string[];
+    favorite_products?: string[];
+    recent_searches?:string[];
+    recent_tags?: string[] 
 }
 
 export type Product = {
     id: string;
     name: string;
     business_id: string;
-    description?: string | null;
-    image?: string | null;
+    is_service: boolean;
+    duration: string;
+    description?: string;
+    image?: string;
+    is_fav: boolean;
     price: number; 
-    rating?: number | null;
-    tags?: string[] | null;
-    reviews?: string[] | null;
+    rating?: number;
+    tags?: string[];
+    reviews?: string[];
     user_views: number;
-    user_sentiments?: string | null;
+    user_sentiments?: string;
 }
 
 export type Review = {
     id: string;
     user_id: string;
+    user: string;
+    user_logo: string;
     business_id: string;
+    date: string;
     rating: number;
     comment?: string | null;
     product_id?: string | null;
     created_at?: string;
+}
+
+export type BusinessEvent = {
+    id: string;
+    business_id: string;
+    title: string;
+    description?: string;
+    start_date: Date;
+    end_date: Date;
+}
+
+export type ContactInfo = {
+    email?: string, 
+    tiktok?: string, 
+    instagram?: string, 
+    phone_number?: string, 
+    website?: string,
+    facebook?: string,
+}
+
+interface DayHours {
+  open: string;
+  close: string;
+  is_open: boolean;
+}
+
+export interface BusinessHours{
+  sunday: DayHours, 
+  monday: DayHours, 
+  tuesday: DayHours, 
+  wednesday: DayHours, 
+  thursday: DayHours, 
+  friday: DayHours, 
+  saturday: DayHours,
 }
 
 /** Interfaces for choice values used in front end */
@@ -95,3 +142,19 @@ export enum SortingFilters {
     Price_High_Low = 'Price: High to Low'
 }
 
+export enum Location {
+    Drew = "Drew Hall", 
+    CHN = "College Hall North", 
+    CHS = "College Hall South",
+    Annex = "Annex",
+    Cook = "Cook Hall",
+    West = "Towers - West", 
+    East = "Towers - East",
+    Quad = "Quad",
+    Axis = "Axis",
+    MD = "Off Campus - Maryland", 
+    VA = "Off Campus - Virginia",
+    DC = "Off Campus - District of Columbia", 
+    Other = "Other", 
+    Anon = "Contact Owner for Details"
+}

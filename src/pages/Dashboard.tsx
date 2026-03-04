@@ -1,32 +1,110 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  TrendingUp, Users, MessageCircle, 
+import {
+  TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb
+  BarChart3, Clock, Lightbulb, Store, Plus
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
+import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
+import { supabase } from "@/integrations/supabase/client";
+import { AddProduct } from "@/components/business/Product";
+import { AddEvent } from "@/components/business/Event";
+import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
   const { user, isBusinessOwner, loading } = useAuth();
   const navigate = useNavigate();
+  const [business, setbusiness] = useState<Business | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [events, setEvents] = useState<BusinessEvent[]>([]);
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addEventOpen, setAddEventOpen] = useState(false);
+  const [stats, setStats] = useState({
+    views: 0,
+    messages: 0,
+    favorites: 0,
+    avgRating: 0,
+  });
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/");
+      return;
     }
-  }, [user, loading, navigate]);
 
-  const stats = [
-    { label: "Total Views", value: "1,247", change: "+12%", icon: Eye },
-    { label: "Messages", value: "34", change: "+5", icon: MessageCircle },
-    { label: "Favorites", value: "89", change: "+18%", icon: Heart },
-    { label: "Avg Rating", value: "4.8", change: "0", icon: Star }
+    if (!loading && user) {
+      if (!isBusinessOwner) {
+        navigate("/profile");
+        return;
+      }
+      loadBusinessData();
+    }
+  }, [user, loading, isBusinessOwner, navigate]);
+
+  const loadBusinessData = async () => {
+    if (!user) return;
+
+    setLoadingBusiness(true);
+    try {
+      // Fetch business
+      const businessData = await fetchBusiness({owner_id: user.id});
+      if (businessData && businessData.length > 0) {
+        setbusiness(businessData[0]);
+
+        // Fetch reviews
+        const reviewsData = await fetchReview({ business_id: businessData[0].id });
+        setReviews(reviewsData  || []);
+
+        // Fetch products
+        const productsData = await fetchProducts(businessData[0].id);
+        setProducts(productsData || []);
+
+        // Fetch events
+        const eventsData = await fetchEvents(businessData[0].id);
+        setEvents(eventsData || []);
+
+        // Calculate average rating
+        const avgRating = reviewsData && reviewsData.length > 0
+          ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
+          : 0;
+
+        // Count favorites (users who favorited this business)
+        const { count: favoritesCount } = await supabase
+          .from("profiles")
+          .select("*", { count: "exact", head: true })
+          .contains("favorite_businesses", [businessData[0].id]);
+
+        // Count messages (placeholder - would need a messages table)
+        const messagesCount = 0;
+
+        setStats({
+          views: businessData[0].user_views || 0,
+          messages: messagesCount,
+          favorites: favoritesCount || 0,
+          avgRating: Math.round(avgRating * 10) / 10,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading business data:", error);
+    } finally {
+      setLoadingBusiness(false);
+    }
+  };
+
+  const statsData = [
+    { label: "Total Views", value: stats.views.toLocaleString(), change: "", icon: Eye },
+    { label: "Messages", value: stats.messages.toString(), change: "", icon: MessageCircle },
+    { label: "Favorites", value: stats.favorites.toString(), change: "", icon: Heart },
+    { label: "Avg Rating", value: stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A", change: "", icon: Star }
   ];
 
   const aiInsights = [
@@ -77,8 +155,31 @@ const Dashboard = () => {
     }
   ];
 
-  if (loading) {
+  if (loading || loadingBusiness) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  }
+
+  // Show create business prompt if no business exists
+  if (!business && isBusinessOwner) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card className="bg-gradient-to-br from-primary/10 to-secondary/10">
+            <CardContent className="p-8 text-center">
+              <Store className="h-16 w-16 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-foreground mb-2">No Business Listed Yet</h2>
+              <p className="text-muted-foreground mb-6">
+                Create your business profile to start showcasing your services to the Howard community.
+              </p>
+              <Button onClick={() => navigate("/create-business")} size="lg">
+                Create Your Business
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -86,33 +187,40 @@ const Dashboard = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-foreground mb-2">Business Dashboard</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-2">
+              {business?.name || "Business Dashboard"}
+            </h2>
             <p className="text-muted-foreground">Manage your business and track performance</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => navigate("/edit-business")}>
               <Settings className="h-4 w-4" />
               Settings
             </Button>
-            <Button className="gap-2" asChild>
-              <Link to="/business/1">View Public Profile</Link>
-            </Button>
+            {business && (
+              <Button className="gap-2" asChild>
+                <Link to={`/business/${business.id}`} state={{ business: business }}>
+                  View Public Profile
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map((stat, index) => (
+          {statsData.map((stat, index) => (
             <Card key={index}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <stat.icon className="h-5 w-5 text-muted-foreground" />
-                  <Badge variant={stat.change.includes('+') ? 'default' : 'secondary'}>
-                    {stat.change}
-                  </Badge>
+                  {stat.change && (
+                    <Badge variant={stat.change.includes('+') ? 'default' : 'secondary'}>
+                      {stat.change}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-2xl font-bold text-foreground mb-1">{stat.value}</p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -151,6 +259,7 @@ const Dashboard = () => {
             <Tabs defaultValue="messages" className="w-full">
               <TabsList className="mb-6">
                 <TabsTrigger value="messages">Messages</TabsTrigger>
+                <TabsTrigger value="services">Services</TabsTrigger>
                 <TabsTrigger value="bookings">Bookings</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
@@ -163,28 +272,82 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {recentMessages.map((msg) => (
-                        <div 
-                          key={msg.id}
-                          className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                        >
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="font-semibold text-foreground">{msg.from}</p>
-                              <span className="text-sm text-muted-foreground">{msg.time}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{msg.message}</p>
-                            {msg.unread && (
-                              <Badge className="mt-2" variant="default">New</Badge>
-                            )}
-                          </div>
+                      {stats.messages === 0 ? (
+                        <div className="text-center py-8">
+                          <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No messages yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Messages from customers will appear here
+                          </p>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">Messages feature coming soon</p>
+                        </div>
+                      )}
                     </div>
-                    <Button variant="outline" className="w-full mt-4">View All Messages</Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="services">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Products & Services</CardTitle>
+                      {business && (
+                        <Button onClick={() => setAddProductOpen(true)} size="sm" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Add Product/Service
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {products.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Store className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No products or services yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Add products and services to showcase what you offer
+                          </p>
+                          {business && (
+                            <Button onClick={() => setAddProductOpen(true)} className="mt-4">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Your First Product/Service
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        products.map((product) => (
+                          <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                            <div className="flex items-center gap-4">
+                              {product.image && (
+                                <img
+                                  src={product.image}
+                                  alt={product.name}
+                                  className="h-16 w-16 rounded-lg object-cover"
+                                />
+                              )}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-foreground">{product.name}</p>
+                                  <Badge variant="outline">{product.is_service ? "Service" : "Product"}</Badge>
+                                </div>
+                                {product.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span>${product.price.toFixed(2)}</span>
+                                  {product.duration && <span>• {product.duration}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -196,20 +359,13 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[1, 2, 3].map((booking) => (
-                        <div key={booking} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Calendar className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-foreground">Box Braids - Sarah M.</p>
-                              <p className="text-sm text-muted-foreground">Tomorrow at 2:00 PM</p>
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm">Manage</Button>
-                        </div>
-                      ))}
+                      <div className="text-center py-8">
+                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No bookings yet</p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Bookings from customers will appear here
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -234,22 +390,51 @@ const Dashboard = () => {
               <TabsContent value="events">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Manage Events</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Manage Events</CardTitle>
+                      {business && (
+                        <Button onClick={() => setAddEventOpen(true)} size="sm" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Create Event
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full gap-2 mb-4">
-                      <Calendar className="h-4 w-4" />
-                      Create New Event
-                    </Button>
                     <div className="space-y-4">
-                      <div className="p-4 border border-border rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">Spring Hair Care Workshop</h4>
-                        <p className="text-sm text-muted-foreground mb-2">March 15, 2024</p>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">Edit</Button>
-                          <Button variant="outline" size="sm">Cancel</Button>
+                      {events.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No events yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Create events to promote your business
+                          </p>
+                          {business && (
+                            <Button onClick={() => setAddEventOpen(true)} className="mt-4">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Your First Event
+                            </Button>
+                          )}
                         </div>
-                      </div>
+                      ) : (
+                        events.map((event) => (
+                          <div key={event.id} className="p-4 border border-border rounded-lg">
+                            <h4 className="font-semibold text-foreground mb-2">{event.title}</h4>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                            )}
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>
+                                {new Date(event.start_date).toLocaleDateString()} {new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <span>→</span>
+                              <span>
+                                {new Date(event.end_date).toLocaleDateString()} {new Date(event.end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -272,9 +457,13 @@ const Dashboard = () => {
                   <TrendingUp className="h-4 w-4" />
                   Promote Business
                 </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => navigate("/create-business")}
+                >
                   <Settings className="h-4 w-4" />
-                  Update Profile
+                  Update Business
                 </Button>
               </CardContent>
             </Card>
@@ -291,6 +480,26 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {business && (
+        <>
+          <AddProduct
+            businessId={business.id}
+            open={addProductOpen}
+            onOpenChange={setAddProductOpen}
+            onSuccess={loadBusinessData}
+          />
+          <AddEvent
+            businessId={business.id}
+            open={addEventOpen}
+            onOpenChange={setAddEventOpen}
+            onSuccess={loadBusinessData}
+          />
+        </>
+      )}
+
+      <Footer />
     </div>
   );
 };

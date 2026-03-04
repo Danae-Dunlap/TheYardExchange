@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,18 +13,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Category, BusinessQuery, SortingFilters, Business } from "@/lib/interfaces";
+import { BusinessCard } from "@/components/business/BusinessCard";
 import { fetchBusiness } from "@/lib/data/utils";
-import { Oval } from "react-loader-spinner";
-import { homeSearchQuery } from "./Home";
+import { supabase } from "@/integrations/supabase/client";
+import Footer from "@/components/layout/Footer";
 
 const Discover = () => {
-  const [searchQuery, setSearchQuery] = useState(homeSearchQuery);
+  const { user, loading, profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
-  const [sortingFilter, setSortingFilter] = useState<SortingFilters | null>(null);
-  const { user, loading } = useAuth();
+  const [sortingFilter, setSortingFilter] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([])
-  const [loadingBusinesses, setLoadingBusinesses] = useState(false);
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,46 +35,76 @@ const Discover = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    setLoadingBusinesses(true);
     const getBusinesses = async () => {
       const selectedBusinesses = await fetchBusiness(searchFilters, searchQuery);
-      setBusinesses(selectedBusinesses)
+      if (selectedBusinesses) {
+        if (sortingFilter) {
+          const sorted = sortBusinesses([...selectedBusinesses], sortingFilter.toLowerCase());
+          setBusinesses(sorted);
+        } else {
+          setBusinesses(selectedBusinesses);
+        }
+      }
     };
     getBusinesses();
-    setLoadingBusinesses(false);
-  }, [searchFilters, searchQuery]);
+  }, [searchFilters, searchQuery, sortingFilter]);
 
   useEffect(() => {
-    if (sortingFilter) {
-      sortBusinesses(sortingFilter.toLowerCase());
-    }
-  }, [sortingFilter]);
+    const timeout = setTimeout(() => {
+      setDeferredSearchQuery(searchQuery);
+    }, 500);
 
-  const sortBusinesses = (sort_by: string) => {
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!deferredSearchQuery.trim()) return;
+    const updateRecentSearches = async () => {
+      const { error } = await supabase.from('profiles').update({
+        recent_searches: [...(profile?.recent_searches || []), deferredSearchQuery]
+      }).eq('id', profile?.id);
+      if (error) {
+        console.error("Error updating recent searches:", error);
+      }
+    }
+    updateRecentSearches();
+  }, [deferredSearchQuery]);
+
+  const sortBusinesses = (businessesToSort: Business[], sort_by: string): Business[] => {
+    const sorted = [...businessesToSort];
     switch (sort_by) {
-      case SortingFilters.Highest_Rated:
-        businesses.sort((a, b) => b.rating - a.rating);
+      case SortingFilters.Highest_Rated.toLowerCase():
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
-      case SortingFilters.Price_Low_High:
-        businesses.sort((a, b) => a.price_range.localeCompare(b.price_range));
+      case SortingFilters.Price_Low_High.toLowerCase():
+        sorted.sort((a, b) => {
+          const aPrice = a.price_range?.[0] ? a.price_range[0] : 0;
+          const bPrice = b.price_range?.[0] ? b.price_range[0] : 0;
+          return aPrice - bPrice;
+        });
         break;
-      case SortingFilters.Price_High_Low:
-        businesses.sort((a, b) => b.price_range.localeCompare(a.price_range));
+      case SortingFilters.Price_High_Low.toLowerCase():
+        sorted.sort((a, b) => {
+          const aPrice = a.price_range?.[1] ? a.price_range[1] : 0;
+          const bPrice = b.price_range?.[1] ? b.price_range[1] : 0;
+          return bPrice - aPrice;
+        });
         break;
     }
+    return sorted;
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+    return <div className="bg-background flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 flex-1">
         {/* Search and Filters */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="flex flex-col md:flex-row gap-4 mb-4 items-end">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -84,13 +112,19 @@ const Discover = () => {
                 placeholder="Search businesses, services, products..."
                 className="pl-10"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchParams(prev => { prev.set("search", e.target.value); return prev; });
+                }}
               />
             </div>
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Category</Label>
-              <Select defaultValue={Category.Default}
-                onValueChange={(e) => setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined })}>
+              <Select defaultValue={searchParams.get("category") || Category.Default}
+                onValueChange={(e) => {
+                  setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined });
+                  setSearchParams(prev => { prev.set("category", e != Category.Default ? e : Category.Default); return prev; });
+                }}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
@@ -106,13 +140,17 @@ const Discover = () => {
 
             <div className="flex flex-col gap-1 w-[180px]">
               <Label className="text-sm ml-2">Sort By</Label>
-              <Select defaultValue={SortingFilters.Highest_Rated}>
+              <Select defaultValue={searchParams.get("sort_by") || SortingFilters.Highest_Rated}
+                onValueChange={(e) => {
+                  setSortingFilter(e);
+                  setSearchParams(prev => { prev.set("sort_by", e); return prev; });
+                }}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(SortingFilters).map((filter) => (
-                    <SelectItem onClick={() => setSortingFilter(filter)} key={filter} value={filter.toLowerCase() || ''}>
+                    <SelectItem key={filter} value={filter.toLowerCase()}>
                       {filter}
                     </SelectItem>
                   ))}
@@ -124,15 +162,25 @@ const Discover = () => {
               <div className="flex flex-col gap-1 w-[120px]">
                 <Label htmlFor="min-price" className="text-sm text-center"> Min Price </Label>
                 <Input
+                  type="number"
                   id="min-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, min_price: Number(e.target.value) })}
+                  defaultValue={searchParams.get('min_price') || null}
+                  onChange={(e) => {
+                    setSearchFilters({ ...searchFilters, min_price: e.target.value });
+                    setSearchParams(prev => { prev.set("min_price", e.target.value); return prev; });
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1 w-[120px]">
                 <Label htmlFor="max-price" className="text-sm text-center"> Max Price </Label>
                 <Input
+                  type="number"
                   id="max-price"
-                  onChange={(e) => setSearchFilters({ ...searchFilters, max_price: Number(e.target.value) })}
+                  defaultValue={searchParams.get('max_price') || null}
+                  onChange={(e) => {
+                    setSearchFilters({ ...searchFilters, max_price: e.target.value });
+                    setSearchParams(prev => { prev.set("max_price", e.target.value); return prev; });
+                  }}
                 />
               </div>
             </div>
@@ -141,69 +189,20 @@ const Discover = () => {
       </div>
 
       {/* Results Header */}
-      <div className="mx-auto px-20 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Discover Businesses</h2>
+      <div className="mx-auto block w-full p-6">
+        <div className="mb-6 ml-6">
+          <h2 className="text-2xl font-bold text-foreground mb-2 relative">Discover Businesses</h2>
           <p className="text-muted-foreground">{businesses.length} businesses found</p>
         </div>
 
-        {loadingBusinesses ?
-          <div className="flex justify-center items-center h-64">
-            <Oval
-              width={40}
-              height={40}
-              strokeWidth={2}
-              color="#353536"
-              ariaLabel="loading" />
-          </div> :
-
-          <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {businesses.map((business) => (
-              <Link key={business.id} to={`/business/${business.id}`}>
-                <Card className="overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full">
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={business.logo_url}
-                      alt={business.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="mb-3">
-                      <div className="flex items-start justify-between mb-1">
-                        <h3 className="font-semibold text-foreground text-lg">{business.name}</h3>
-                        <span className="text-sm font-semibold text-foreground ml-2">⭐ {business.rating}</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs mb-2">{business.category}</Badge>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{business.description}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span>{business.price_range}</span>
-                        <span>•</span>
-                        <span>{business.reviews} reviews</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        }
+        <div className="container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 min-h-[500px]">
+          {businesses.map((business) => (
+            <BusinessCard business={business} key={business.id} />
+          ))}
+        </div>
       </div>
 
-
-       {/* AI Recommendations */}
-        <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 container mb-4">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-xl font-bold text-foreground mb-2">Get Personalized Recommendations</h3>
-            <p className="text-muted-foreground mb-4">
-              Our AI learns from your preferences to suggest businesses you'll love
-            </p>
-            <Button>Enable Smart Recommendations</Button>
-          </CardContent>
-        </Card>
+      <Footer />
     </div>
   );
 };
