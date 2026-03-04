@@ -199,6 +199,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
             id: product.id,
             name: product.product_name,
             business_id: product.business_id,
+            business_name: product.business_name,
             description: product.description,
             images: product.images,
             price: Number(product.price),

@@ -283,11 +283,11 @@ const Product = ({ service, }: { service: ProductType, }) => {
       <p className="font-semibold text-foreground">{service.price}</p>
       {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
 
-      <Button 
-      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200" 
-      size="icon" 
-      onClick={() => setIsFavorite(!isFavorite)} 
-      title={!isFavorite ? "Add to Favorites" : "Remove from Favorites"}>
+      <Button
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
+        size="icon"
+        onClick={() => setIsFavorite(!isFavorite)}
+        title={!isFavorite ? "Add to Favorites" : "Remove from Favorites"}>
         <Heart className="h-5 w-5" fill={isFavorite ? "#ff474c" : "none"} stroke={isFavorite ? "none" : "#a9a9a9"} />
       </Button>
     </div>
@@ -295,12 +295,8 @@ const Product = ({ service, }: { service: ProductType, }) => {
   );
 }
 
-interface FavoriteProductProps {
-  service: ProductType;
-  disableLink?: boolean; // when true, card is not wrapped in a Link
-}
 
-const FavoriteProduct = ({ service, disableLink = false }: FavoriteProductProps) => {
+const FavoriteProduct = ({ service }: { service: ProductType }) => {
   const { profile, user, refreshProfileData } = useAuth();
   const [isFavorite, setIsFavorite] = useState(profile?.favorite_products.includes(service.id) || false);
 
@@ -330,7 +326,7 @@ const FavoriteProduct = ({ service, disableLink = false }: FavoriteProductProps)
   }, [isFavorite, profile, user, refreshProfileData]);
 
 
-  return(
+  return (
     <div>
       <div className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
         <div>
@@ -340,7 +336,7 @@ const FavoriteProduct = ({ service, disableLink = false }: FavoriteProductProps)
         <p className="font-semibold text-foreground">{service.price}</p>
         {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
 
-        <div onClick={(e) => e.stopPropagation()}> {/* prevent parent click */}
+        <div onClick={(e) => e.stopPropagation()}>
           <Button
             className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
             size="icon"
@@ -357,8 +353,9 @@ const FavoriteProduct = ({ service, disableLink = false }: FavoriteProductProps)
             />
           </Button>
         </div>
-
-        <p className="text-sm text-muted-foreground inline-flex">From: {service.business_name}</p>
+        <Link className="hover:bg-gray-200" key={service.business_id} to={`/business/${service.business_id}`}>
+          <p className="text-sm text-muted-foreground inline-flex">From: {service.business_name}</p>
+        </Link>
       </div>
     </div>
   );
