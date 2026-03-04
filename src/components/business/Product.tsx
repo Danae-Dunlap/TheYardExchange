@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Product as ProductType } from "@/lib/interfaces";
 import { insertProduct } from "@/lib/data/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product/Service name is required").max(100),
@@ -32,12 +36,13 @@ const productSchema = z.object({
 
 interface AddProductProps {
   businessId: string;
+  businessName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductProps) => {
+const AddProduct = ({ businessId, businessName, open, onOpenChange, onSuccess }: AddProductProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -75,6 +80,7 @@ const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductPro
         id: productId,
         name: validated.name,
         business_id: businessId,
+        business_name: businessName,
         description: validated.description || null,
         price: validated.price,
         duration: validated.duration || null,
@@ -82,6 +88,7 @@ const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductPro
         is_service: validated.is_service,
         image: validated.image ? validated.image.name : null,
         user_views: 0,
+        users_favorited: 0,
         is_fav: false,
       };
 
@@ -239,17 +246,122 @@ const AddProduct = ({ businessId, open, onOpenChange, onSuccess }: AddProductPro
   );
 };
 
-const Product = ({service}) => {
-    return (
-                <div key={service.id} className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div>
-                        <p className="font-medium text-foreground">{service.name}</p>
-                        <p className="text-sm text-muted-foreground">{service.description}</p>
-                    </div>
-                    <p className="font-semibold text-foreground">{service.price}</p>
-                    {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
-                </div>
-    );
+const Product = ({ service, }: { service: ProductType, }) => {
+  const { profile, user, refreshProfileData } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(profile?.favorite_products.includes(service.id) || false);
+
+
+  useEffect(() => {
+    const addFavoriteProduct = async () => {
+      if (!profile || !user) return;
+      //prevent duplicate values
+      profile.favorite_products = Array.from(new Set<string>(
+        isFavorite ? [...profile.favorite_products, service.id] : profile.favorite_products.filter(id => id !== service.id)
+      ));
+
+      //Update User Profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ favorite_products: profile.favorite_products })
+        .eq('id', user.id);
+      if (profileError) { console.error("Error updating favorite products:", profileError.message); }
+
+      if (refreshProfileData) {
+        await refreshProfileData();
+      }
+    };
+    addFavoriteProduct();
+
+  }, [isFavorite, profile, user, refreshProfileData]);
+
+  return (
+    <div key={service.id} className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+      <div>
+        <p className="font-medium text-foreground">{service.name}</p>
+        <p className="text-sm text-muted-foreground">{service.description}</p>
+      </div>
+      <p className="font-semibold text-foreground">{service.price}</p>
+      {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
+
+      <Button 
+      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200" 
+      size="icon" 
+      onClick={() => setIsFavorite(!isFavorite)} 
+      title={!isFavorite ? "Add to Favorites" : "Remove from Favorites"}>
+        <Heart className="h-5 w-5" fill={isFavorite ? "#ff474c" : "none"} stroke={isFavorite ? "none" : "#a9a9a9"} />
+      </Button>
+    </div>
+
+  );
 }
 
-export {AddProduct, Product};
+interface FavoriteProductProps {
+  service: ProductType;
+  disableLink?: boolean; // when true, card is not wrapped in a Link
+}
+
+const FavoriteProduct = ({ service, disableLink = false }: FavoriteProductProps) => {
+  const { profile, user, refreshProfileData } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(profile?.favorite_products.includes(service.id) || false);
+
+
+  useEffect(() => {
+    const addFavoriteProduct = async () => {
+      if (!profile || !user) return;
+      //prevent duplicate values
+      profile.favorite_products = Array.from(new Set<string>(
+        isFavorite ? [...profile.favorite_products, service.id] : profile.favorite_products.filter(id => id !== service.id)
+      ));
+
+      //Update User Profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ favorite_products: profile.favorite_products })
+        .eq('id', user.id);
+      if (profileError) { console.error("Error updating favorite products:", profileError.message); }
+
+      // refresh profile data in auth context so pages update
+      if (refreshProfileData) {
+        await refreshProfileData();
+      }
+    };
+    addFavoriteProduct();
+
+  }, [isFavorite, profile, user, refreshProfileData]);
+
+
+  return(
+    <div>
+      <div className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+        <div>
+          <p className="font-medium text-foreground">{service.name}</p>
+          <p className="text-sm text-muted-foreground">{service.description}</p>
+        </div>
+        <p className="font-semibold text-foreground">{service.price}</p>
+        {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
+
+        <div onClick={(e) => e.stopPropagation()}> {/* prevent parent click */}
+          <Button
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
+            size="icon"
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.stopPropagation();
+              setIsFavorite(!isFavorite);
+            }}
+            title="Remove from Favorites"
+          >
+            <Heart
+              className="h-5 w-5"
+              fill={isFavorite ? "#ff474c" : "none"}
+              stroke={isFavorite ? "none" : "#a9a9a9"}
+            />
+          </Button>
+        </div>
+
+        <p className="text-sm text-muted-foreground inline-flex">From: {service.business_name}</p>
+      </div>
+    </div>
+  );
+}
+
+export { AddProduct, Product, FavoriteProduct };

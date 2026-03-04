@@ -8,19 +8,14 @@ import { Event } from "./Event";
 import { Clock, MapPin, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatHours } from "./Hours";
+import { priceRange } from "@/lib/utils";
+import { useState } from "react";
 
-export function priceRange(price_range) {
-    if (price_range && price_range.length > 1) {
-      return <span className="text-base text-muted-foreground"> {price_range[0]}-{price_range[1]}</span>;
-    } else if (price_range && price_range.length === 1) {
-      return <span className="text-base text-muted-foreground"> {price_range[0]}</span>;
-    }
-}
 
 const DetailSection = ({ business, favorites, services, reviews, events }) => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfileData } = useAuth();
+  const [favoriteProducts, setFavoriteProducts] = useState(profile?.favorite_products || []);
 
-  
 
   return (
     <div className="lg:col-span-2">
@@ -59,7 +54,7 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
                   <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="font-medium text-foreground">Price Range</p>
-                    {priceRange(business.price_range)}
+                    <span className="text-base text-muted-foreground">{priceRange(business.price_range)}</span>
                   </div>
                 </div>
               </div>

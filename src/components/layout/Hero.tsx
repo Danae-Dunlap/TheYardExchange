@@ -7,6 +7,7 @@ import { Category } from "@/lib/interfaces";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 const HomeHeroSection = () => {
     const navigate = useNavigate();
@@ -18,8 +19,8 @@ const HomeHeroSection = () => {
             searchParams.set("search", searchQuery);
             searchParams.set("category", cat ? cat : Category.Default);
             return searchParams;
-        }); 
-        navigate(`/discover?${searchParams.toString()}`);  
+        });
+        navigate(`/discover?${searchParams.toString()}`);
     }
 
     return (
@@ -61,21 +62,33 @@ const HomeHeroSection = () => {
 };
 
 const BusinessDetailHeroSection = ({ business, reviewsLength }) => {
-    const { user, profile } = useAuth();
+    const { user, profile, refreshProfileData } = useAuth();
     const [isFavorite, setIsFavorite] = useState(profile?.favorite_businesses.includes(business.id) || false);
+    const [favoriteBusinesses, setFavoriteBusiness] = useState(profile?.favorite_businesses || []);
+    useEffect(() => {
+        const addFavoriteBusiness = async () => {
+            let userFavorited = business.users_favorited;
+            if (favoriteBusinesses.includes(business.id) && !isFavorite) {
+                userFavorited -= 1;
+            } else if (!favoriteBusinesses.includes(business.id) && isFavorite) {
+                userFavorited += 1;
+            }
+            const newFavoriteBusinesses = isFavorite ? [...favoriteBusinesses, business.id] : favoriteBusinesses.filter(id => id !== business.id);
+            setFavoriteBusiness(newFavoriteBusinesses);
 
-    const addFavoriteBusiness = async () => {
-        setIsFavorite(!isFavorite);
-        if (isFavorite) {
-            const favoriteBusinesses = [...profile.favorite_businesses, business.id];
-            const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
-            if (error) { console.error("Error updating favorite businesses:", error.message); }
-        } else {
-            const favoriteBusinesses = profile.favorite_businesses.filter(id => id !== business.id);
-            const { error } = await supabase.from('profiles').update({ favorite_businesses: favoriteBusinesses }).eq('id', user.id);
-            if (error) { console.error("Error updating favorite businesses:", error.message); }
+            //Update Business Stat
+            const { error: profileError } = await supabase.from('businesses').update({ users_favorited: userFavorited }).eq('id', business.id);
+            if (profileError) { console.error("Error updating business favorites:", profileError.message); }
+
+            //Update User Profile
+            const { error: BusinessError } = await supabase.from('profiles').update({ favorite_businesses: newFavoriteBusinesses }).eq('id', user.id);
+            if (BusinessError) { console.error("Error updating favorite businesses:", BusinessError.message); }
+
+            refreshProfileData();
         }
-    }
+        addFavoriteBusiness();
+    }, [isFavorite]);
+
 
     return (
         <div className="relative h-[400px] overflow-hidden">
@@ -104,8 +117,13 @@ const BusinessDetailHeroSection = ({ business, reviewsLength }) => {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button className={isFavorite ? "bg-red-500 hover:bg-red-600" : "bg-gray-200 hover:bg-gray-300"} variant="outline" size="icon" onClick={addFavoriteBusiness} title="Add to Favorites">
-                            <Heart className="h-4 w-4" />
+                        <Button
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
+                            size="icon"
+                            onClick={() => setIsFavorite(!isFavorite)}
+                            title={!isFavorite ? "Add to Favorites" : "Remove from Favorites"}
+                        >
+                            <Heart className="h-5 w-5" fill={isFavorite ? "#ff474c" : "none"} stroke={isFavorite ? "none" : "#a9a9a9"} />
                         </Button>
                     </div>
                 </div>

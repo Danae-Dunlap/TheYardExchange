@@ -5,7 +5,7 @@ import {z} from "zod";
  */
 export type BusinessQuery = {
     owner_id?: string;
-    business_id?: string;
+    business_id?: string[];
     category?: string;
     min_price?: string;
     max_price?: string;
@@ -38,6 +38,7 @@ export type Business = {
     tags?: string[];
     price_range?: number[];
     user_views: number;
+    users_favorited: number;
     most_popular_products: string[];
     user_sentiments?: string;
 }
@@ -61,6 +62,7 @@ export type Product = {
     id: string;
     name: string;
     business_id: string;
+    business_name?: string;
     is_service: boolean;
     duration: string;
     description?: string;
@@ -71,6 +73,7 @@ export type Product = {
     tags?: string[];
     reviews?: string[];
     user_views: number;
+    users_favorited: number;
     user_sentiments?: string;
 }
 
@@ -88,6 +91,7 @@ export type Review = {
 export type BusinessEvent = {
     id: string;
     business_id: string;
+    business_name: string;
     title: string;
     description?: string;
     start_date: Date;
