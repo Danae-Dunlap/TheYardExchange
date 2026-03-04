@@ -6,12 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus
+  BarChart3, Clock, Lightbulb, Store, Plus, Trash2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteProduct } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
 import { AddProduct } from "@/components/business/Product";
@@ -34,6 +34,19 @@ const Dashboard = () => {
     favorites: 0,
     avgRating: 0,
   });
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm("Are you sure you want to delete this product/service?")) {
+      return;
+    }
+    try {
+      await deleteProduct(productId);
+      await loadBusinessData();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Failed to delete product/service. Please try again.");
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -321,7 +334,10 @@ const Dashboard = () => {
                         </div>
                       ) : (
                         products.map((product) => (
-                          <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <div
+                            key={product.id}
+                            className="flex items-center justify-between p-4 border border-border rounded-lg"
+                          >
                             <div className="flex items-center gap-4">
                               {product.image && (
                                 <img
@@ -333,10 +349,14 @@ const Dashboard = () => {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-foreground">{product.name}</p>
-                                  <Badge variant="outline">{product.is_service ? "Service" : "Product"}</Badge>
+                                  <Badge variant="outline">
+                                    {product.is_service ? "Service" : "Product"}
+                                  </Badge>
                                 </div>
                                 {product.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {product.description}
+                                  </p>
                                 )}
                                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                                   <span>${product.price.toFixed(2)}</span>
@@ -344,6 +364,15 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="ml-4"
+                              onClick={() => handleDeleteProduct(product.id)}
+                              title="Delete product/service"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         ))
                       )}

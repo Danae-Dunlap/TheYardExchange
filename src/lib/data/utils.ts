@@ -174,15 +174,22 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
 /**
  * Fetch product data from the database.
  *
- * @param business - The array of business IDs to fetch products for.
- * @param product_id - ID value used to fetch most popular products
+ * @param business_id - Optional business ID to filter products for a specific business.
+ * @param is_fav - Optional flag to fetch only favorite products.
  * @returns A promise that resolves to an array of product data
  * @throws Error if the fetch operation fails.
  */
 export async function fetchProducts(business_id?: string, is_fav?: boolean): Promise<Product[] | null> {
-    let query = supabase.from('products').select('*').eq('business_id', business_id);
+    let query = supabase.from('products').select('*');
 
-    if(is_fav) {query = query.eq('is_favorite', is_fav);}
+    if (business_id) {
+        query = query.eq('business_id', business_id);
+    }
+
+    if (typeof is_fav === 'boolean') {
+        query = query.eq('is_favorite', is_fav);
+    }
+
     const {data, error} = await query;
 
     if (error) {throw new Error(`Error fetching products: ${error.message}`);}
@@ -208,6 +215,37 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean): Pro
     }));
 
     return products;
+}
+
+/**
+ * Fetch products with the same name across all businesses for comparison.
+ *
+ * @param productName name of the product/service to compare
+ * @returns list of matching products with minimal business info attached
+ */
+export async function fetchComparableProducts(productName: string): Promise<any[] | null> {
+    const { data, error } = await supabase
+        .from('products')
+        .select(`
+            id,
+            product_name,
+            description,
+            images,
+            price,
+            business_id,
+            businesses (
+                id,
+                name,
+                logo_url
+            )
+        `)
+        .ilike('product_name', productName);
+
+    if (error) {
+        throw new Error(`Error fetching comparable products: ${error.message}`);
+    }
+
+    return data || null;
 }
 
 /**
@@ -259,9 +297,6 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
     }); 
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
-
-    // Recalculate price range from all products to ensure accuracy
-    await recalculatePriceRange(product.business_id);
 }
 
 /**
@@ -284,9 +319,6 @@ export async function updateProduct(product: Product): Promise<void> {
     const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
     if(error){throw new Error(`Error updating product: ${error.message}`);}
     if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
-
-    // Recalculate price range from all products to ensure accuracy
-    await recalculatePriceRange(product.business_id);
 }
 
 /**
@@ -314,11 +346,6 @@ export async function deleteProduct(productId: string): Promise<void> {
 
     if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
     if(error){throw new Error(`Error deleting product: ${error.message}`);}
-
-    // Recalculate price range from remaining products
-    if (businessId) {
-        await recalculatePriceRange(businessId);
-    }
 }
 
 /**
