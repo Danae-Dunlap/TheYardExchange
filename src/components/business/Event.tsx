@@ -29,12 +29,13 @@ const eventSchema = z.object({
 
 interface AddEventProps {
   businessId: string;
+  businessName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-const AddEvent = ({ businessId, open, onOpenChange, onSuccess }: AddEventProps) => {
+const AddEvent = ({ businessId, businessName, open, onOpenChange, onSuccess }: AddEventProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -67,6 +68,7 @@ const AddEvent = ({ businessId, open, onOpenChange, onSuccess }: AddEventProps) 
       const event: BusinessEvent = {
         id: eventId,
         business_id: businessId,
+        business_name: businessName,
         title: validated.title,
         description: validated.description || null,
         start_date: startDateTime,

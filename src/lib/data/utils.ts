@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, Location, BusinessEvent, ContactInfo} from "../interfaces";
+import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
 import type { Json } from "@/integrations/supabase/types";
 
 /**
@@ -23,7 +23,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     if(filters){
         if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
         if (filters.category) { query = query.eq('category', filters.category as Category);}
-        if(filters.business_id){query = query.eq('id', filters.business_id);
+        if(filters.business_id){query = query.in('id', filters.business_id);
         }
     }
 
@@ -67,6 +67,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
             user_views: Number(business.user_views || 0),
+            users_favorited: business.users_favorited,
             most_popular_products: business.most_popular_products || null,
             reviews: business.reviews,
         }
@@ -121,6 +122,7 @@ export async function insertBusiness(business: Business): Promise<void> {
         deal: business.deal || null,
         price_range: business.price_range || null,
         user_views: business.user_views || 0,
+        users_favorited: business.users_favorited || 0,
         most_popular_products: business.most_popular_products || null,
         location: business.location,
     }); 
@@ -141,7 +143,6 @@ export async function insertBusiness(business: Business): Promise<void> {
 export async function updateBusiness(business: Business): Promise<void> {
     const {error} = await supabase.from('businesses').update({
         name: business.name, 
-        owner_id: business.owner_id,
         category: business.category, 
         description: business.description || null,
         logo_url: business.logo_url || null,
@@ -150,8 +151,9 @@ export async function updateBusiness(business: Business): Promise<void> {
         hours_of_operation: business.hours_of_operation as unknown as Json,
         tags: business.tags || null,
         price_range: business.price_range || null,
-        user_views: business.user_views,
-        most_popular_products: business.most_popular_products,
+        user_views: business.user_views || 0,
+        most_popular_products: business.most_popular_products || null,
+        users_favorited: business.users_favorited || 0
     }).eq('id', business.id);
 
     if(error){throw new Error(`Error updating business: ${error.message}`);}
@@ -180,12 +182,14 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
  * @returns A promise that resolves to an array of product data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchProducts(business_id?: string, is_fav?: boolean): Promise<Product[] | null> {
-    let query = supabase.from('products').select('*').eq('business_id', business_id);
+export async function fetchProducts(business_id?: string, is_fav?: boolean, product_id?: string[]): Promise<Product[] | null> {
+    let query = supabase.from('products').select('*')
 
+    if(business_id) {query = query.eq('business_id', business_id);}
     if(is_fav) {query = query.eq('is_favorite', is_fav);}
-    const {data, error} = await query;
+    if(product_id && product_id.length > 0) {query = query.in('id', product_id);}
 
+    const {data, error} = await query;
     if (error) {throw new Error(`Error fetching products: ${error.message}`);}
     if(!data) {return null;}
 
@@ -205,6 +209,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean): Pro
             duration: product.duration,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
+            users_favorited: product.users_favorited,
         }
     }));
 
@@ -250,6 +255,7 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         id: product.id,
         product_name: product.name,
         business_id: product.business_id,
+        business_name: product.business_name,
         description: product.description || null,
         images: imagePath ? imagePath : null,
         price: product.price,
@@ -257,6 +263,7 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         is_service: product.is_service || false,
         duration: product.duration || null,
         category: product.tags?.[0] || null, // Use first tag as category if available
+        users_favorited: product.users_favorited || 0,
     }); 
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
@@ -275,11 +282,12 @@ export async function updateProduct(product: Product): Promise<void> {
     const fileName = `${product.id}/image/${product.image}`;
     const {error} = await supabase.from('products').update({
         name: product.name,
-        business_id: product.business_id,
+        business_name: product.business_name,
         description: product.description || null,
         images:  product.image ? `${product.business_id}/images/${product.image}` : null,
         price: product.price,
         user_views: product.user_views,
+        users_favorited: product.users_favorited,
     }).eq('id', product.id);
 
     const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
@@ -523,6 +531,7 @@ export async function fetchEvents(business_id: string): Promise<BusinessEvent[] 
         return{
             id: event.id,
             business_id: event.business_id,
+            business_name: event.business_name,
             title: event.title,
             description: event.description, 
             start_date: new Date(event.start_date),
@@ -543,6 +552,7 @@ export async function insertEvent(event: BusinessEvent): Promise<void> {
     const {error} = await supabase.from('events').insert({
         id: event.id,
         business_id: event.business_id,
+        business_name: event.business_name, 
         title: event.title,
         description: event.description || null,
         start_date: event.start_date.toISOString(),
