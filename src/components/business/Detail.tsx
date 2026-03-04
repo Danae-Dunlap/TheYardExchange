@@ -1,18 +1,17 @@
 import { Card, CardContent } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Product } from "./Product";
-import Review from "./Review";
 import { Separator } from "../ui/separator";
-import { Button } from "../ui/button";
 import { Event } from "./Event";
 import { Clock, MapPin, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatHours } from "./Hours";
+import { ReviewList } from "@/components/ui/review-list";
 import { priceRange } from "@/lib/utils";
 import { useState } from "react";
 
 
-const DetailSection = ({ business, favorites, services, reviews, events }) => {
+const DetailSection = ({ business, favorites, services, events }) => {
   const { user, profile, refreshProfileData } = useAuth();
   const [favoriteProducts, setFavoriteProducts] = useState(profile?.favorite_products || []);
 
@@ -91,18 +90,7 @@ const DetailSection = ({ business, favorites, services, reviews, events }) => {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold text-foreground mb-4">Reviews</h3>
-              {reviews.length === 0 ? (
-                <p className="text-muted-foreground">No reviews yet.</p>
-              ) : (
-                reviews.map((review, index) => (
-                  <Review key={index} review={review} />
-                ))
-              )}
-              {user && user.id && !reviews.some(review => review.user_id === user.id) && (
-                <Button className="mt-4" variant="outline" size="sm">
-                  Add Review
-                </Button>
-              )}
+              <ReviewList businessId={business.id} currentUserId={user?.id} />
             </CardContent>
           </Card>
         </TabsContent>

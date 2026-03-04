@@ -85,7 +85,9 @@ export type Review = {
     business_id: string;
     date: string;
     rating: number;
-    comment?: string;
+    comment?: string | null;
+    product_id?: string | null;
+    created_at?: string;
 }
 
 export type BusinessEvent = {
