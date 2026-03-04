@@ -6,14 +6,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus
+  BarChart3, Clock, Lightbulb, Store, Plus, Trash2, Pencil
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteProduct } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
-import { AddProduct } from "@/components/business/Product";
+import { supabase } from "@/integrations/supabase/client";
+import { AddProduct, EditProduct } from "@/components/business/Product";
 import { AddEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [stats, setStats] = useState({
     views: 0,
@@ -33,6 +35,19 @@ const Dashboard = () => {
     favorites: 0,
     avgRating: 0,
   });
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm("Are you sure you want to delete this product/service?")) {
+      return;
+    }
+    try {
+      await deleteProduct(productId);
+      await loadBusinessData();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Failed to delete product/service. Please try again.");
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -314,7 +329,10 @@ const Dashboard = () => {
                         </div>
                       ) : (
                         products.map((product) => (
-                          <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <div
+                            key={product.id}
+                            className="flex items-center justify-between p-4 border border-border rounded-lg"
+                          >
                             <div className="flex items-center gap-4">
                               {product.image && (
                                 <img
@@ -326,16 +344,38 @@ const Dashboard = () => {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-foreground">{product.name}</p>
-                                  <Badge variant="outline">{product.is_service ? "Service" : "Product"}</Badge>
+                                  <Badge variant="outline">
+                                    {product.is_service ? "Service" : "Product"}
+                                  </Badge>
                                 </div>
                                 {product.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {product.description}
+                                  </p>
                                 )}
                                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                                   <span>${product.price.toFixed(2)}</span>
                                   {product.duration && <span>• {product.duration}</span>}
                                 </div>
                               </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setEditingProduct(product)}
+                                title="Edit product/service"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                title="Delete product/service"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         ))
@@ -482,6 +522,13 @@ const Dashboard = () => {
             businessName={business.name}
             open={addProductOpen}
             onOpenChange={setAddProductOpen}
+            onSuccess={loadBusinessData}
+          />
+          <EditProduct
+            businessId={business.id}
+            product={editingProduct}
+            open={!!editingProduct}
+            onOpenChange={(open) => !open && setEditingProduct(null)}
             onSuccess={loadBusinessData}
           />
           <AddEvent

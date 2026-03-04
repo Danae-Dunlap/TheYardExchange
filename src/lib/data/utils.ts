@@ -177,17 +177,25 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
 /**
  * Fetch product data from the database.
  *
- * @param business - The array of business IDs to fetch products for.
- * @param product_id - ID value used to fetch most popular products
+ * @param business_id - Optional business ID to filter products for a specific business.
+ * @param is_fav - Optional flag to fetch only favorite products.
  * @returns A promise that resolves to an array of product data
  * @throws Error if the fetch operation fails.
  */
 export async function fetchProducts(business_id?: string, is_fav?: boolean, product_id?: string[]): Promise<Product[] | null> {
-    let query = supabase.from('products').select('*')
+    let query = supabase.from('products').select('*');
 
-    if(business_id) {query = query.eq('business_id', business_id);}
-    if(is_fav) {query = query.eq('is_favorite', is_fav);}
-    if(product_id && product_id.length > 0) {query = query.in('id', product_id);}
+    if (business_id) {
+        query = query.eq('business_id', business_id);
+    }
+
+    if (typeof is_fav === 'boolean') {
+        query = query.eq('is_favorite', is_fav);
+    }
+
+    if (product_id && product_id.length > 0) {
+        query = query.in('id', product_id);
+    }
 
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching products: ${error.message}`);}
@@ -200,13 +208,13 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
             name: product.product_name,
             business_id: product.business_id,
             description: product.description,
-            images: product.images,
+            image: product.images ?? undefined,
             price: Number(product.price),
             rating: product.rating ? Number(product.rating) : null,
             tags: product.tags,
             is_fav: product.is_favorite,
             is_service: product.is_service,
-            duration: product.duration,
+            duration: product.duration ?? "",
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
             users_favorited: product.users_favorited,
@@ -214,6 +222,37 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
     }));
 
     return products;
+}
+
+/**
+ * Fetch products with the same name across all businesses for comparison.
+ *
+ * @param productName name of the product/service to compare
+ * @returns list of matching products with minimal business info attached
+ */
+export async function fetchComparableProducts(productName: string): Promise<any[] | null> {
+    const { data, error } = await supabase
+        .from('products')
+        .select(`
+            id,
+            product_name,
+            description,
+            images,
+            price,
+            business_id,
+            businesses (
+                id,
+                name,
+                logo_url
+            )
+        `)
+        .ilike('product_name', productName);
+
+    if (error) {
+        throw new Error(`Error fetching comparable products: ${error.message}`);
+    }
+
+    return data || null;
 }
 
 /**
@@ -267,35 +306,52 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
     }); 
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
-
-    // Recalculate price range from all products to ensure accuracy
-    await recalculatePriceRange(product.business_id);
 }
 
 /**
  * Update an existing product in the database.
- * 
- * @param product 
+ *
+ * @param product Product data (id, business_id, etc.)
+ * @param imageFile Optional new image file to upload; if not provided, existing image URL is kept.
  * @throws Error if the update operation fails.
  */
-export async function updateProduct(product: Product): Promise<void> {
-    const fileName = `${product.id}/image/${product.image}`;
-    const {error} = await supabase.from('products').update({
-        name: product.name,
-        business_name: product.business_name,
+export async function updateProduct(product: Product, imageFile?: File): Promise<void> {
+    let imagePath: string | null = product.image || null;
+
+    if (imageFile) {
+        const fileName = `${product.id}/image/${imageFile.name}`;
+        const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(fileName, imageFile, {
+                cacheControl: '3600',
+                upsert: true,
+            });
+        if (uploadError) {
+            throw new Error(`Error uploading product image: ${uploadError.message}`);
+        }
+        const { data: imageData } = await supabase.storage
+            .from('products')
+            .getPublicUrl(fileName);
+        imagePath = imageData?.publicUrl || fileName;
+    }
+
+    const { error } = await supabase.from('products').update({
+        product_name: product.name,
+        business_id: product.business_id,
+        business_name: product.business_name ?? undefined,
         description: product.description || null,
-        images:  product.image ? `${product.business_id}/images/${product.image}` : null,
+        images: imagePath,
         price: product.price,
-        user_views: product.user_views,
-        users_favorited: product.users_favorited,
+        user_views: product.user_views ?? 0,
+        users_favorited: product.users_favorited ?? 0,
+        is_service: product.is_service ?? false,
+        duration: product.duration || null,
+        category: product.tags?.[0] || null,
     }).eq('id', product.id);
 
-    const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
-    if(error){throw new Error(`Error updating product: ${error.message}`);}
-    if(uploadError){throw new Error(`Error uploading product image: ${uploadError.message}`);}
-
-    // Recalculate price range from all products to ensure accuracy
-    await recalculatePriceRange(product.business_id);
+    if (error) {
+        throw new Error(`Error updating product: ${error.message}`);
+    }
 }
 
 /**
@@ -323,11 +379,6 @@ export async function deleteProduct(productId: string): Promise<void> {
 
     if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
     if(error){throw new Error(`Error deleting product: ${error.message}`);}
-
-    // Recalculate price range from remaining products
-    if (businessId) {
-        await recalculatePriceRange(businessId);
-    }
 }
 
 /**
