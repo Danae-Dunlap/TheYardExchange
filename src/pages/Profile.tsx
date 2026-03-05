@@ -52,7 +52,7 @@ const ProfilePage = () => {
               <FavoriteProduct
                 key={product.id}
                 service={product}
-                disableLink={true} // don't navigate when used on profile page
+                //disableLink={true} // don't navigate when used on profile page
               />
             ))}
           </div>
