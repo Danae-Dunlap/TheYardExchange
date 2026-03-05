@@ -85,13 +85,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserRoles(session.user.id);
+        fetchProfile(session.user.id);
       } else {
         setIsBusinessOwner(false);
+        setProfile(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserRoles]);
+  }, [fetchUserRoles, fetchProfile]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
