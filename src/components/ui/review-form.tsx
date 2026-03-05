@@ -60,6 +60,9 @@ export function ReviewForm({
         product_id: productId || null,
         rating,
         comment: comment || null,
+        user: "",
+        user_logo: "",
+        date: ""
       };
       await insertReview(review);
       toast({ title: "Review submitted!", description: "Thank you for your feedback." });

@@ -4,14 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus
+  BarChart3, Clock, Lightbulb, Store, Plus, Pencil, Trash2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusiness, fetchReview, fetchProducts, fetchEvents } from "@/lib/data/utils";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteBusiness } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import { AddProduct } from "@/components/business/Product";
 import { AddEvent } from "@/components/business/Event";
@@ -27,6 +31,7 @@ const Dashboard = () => {
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stats, setStats] = useState({
     views: 0,
     messages: 0,
@@ -48,6 +53,16 @@ const Dashboard = () => {
       loadBusinessData();
     }
   }, [user, loading, isBusinessOwner, navigate]);
+
+  const handleDeleteBusiness = async () => {
+    if (!business || !user) return;
+    try {
+      await deleteBusiness(business.id, user.id);
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting business:", error);
+    }
+  };
 
   const loadBusinessData = async () => {
     if (!user) return;
@@ -189,8 +204,8 @@ const Dashboard = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2" onClick={() => navigate("/edit-business")}>
-              <Settings className="h-4 w-4" />
-              Settings
+              <Pencil className="h-4 w-4" />
+              Edit Business
             </Button>
             {business && (
               <Button className="gap-2" asChild>
@@ -253,8 +268,6 @@ const Dashboard = () => {
               <TabsList className="mb-6">
                 <TabsTrigger value="messages">Messages</TabsTrigger>
                 <TabsTrigger value="services">Services</TabsTrigger>
-                <TabsTrigger value="bookings">Bookings</TabsTrigger>
-                <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
               </TabsList>
 
@@ -345,41 +358,6 @@ const Dashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="bookings">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Upcoming Bookings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="text-center py-8">
-                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">No bookings yet</p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Bookings from customers will appear here
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="analytics">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Performance Analytics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[300px] flex items-center justify-center border border-border rounded-lg bg-muted/30">
-                      <div className="text-center">
-                        <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">Analytics chart would appear here</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
               <TabsContent value="events">
                 <Card>
                   <CardHeader>
@@ -446,17 +424,21 @@ const Dashboard = () => {
                   <Calendar className="h-4 w-4" />
                   Schedule Post
                 </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Promote Business
-                </Button>
-                <Button
+<Button
                   variant="outline"
                   className="w-full justify-start gap-2"
-                  onClick={() => navigate("/create-business")}
+                  onClick={() => navigate("/edit-business")}
                 >
                   <Settings className="h-4 w-4" />
                   Update Business
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Business
                 </Button>
               </CardContent>
             </Card>
@@ -493,6 +475,26 @@ const Dashboard = () => {
           />
         </>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Business</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{business?.name}</strong>? This action cannot be undone and will permanently remove your business and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteBusiness}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
     </div>
