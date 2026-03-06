@@ -62,7 +62,6 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             description: business.description,
             logo_url: logoUrl,
             contact_info: business.contact_info ? (business.contact_info as ContactInfo) : undefined,
-            products: await fetchProducts(String(business.id)),
             price_range: business.price_range,
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
@@ -264,7 +263,6 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         is_service: product.is_service || false,
         duration: product.duration || null,
         category: product.tags?.[0] || null, // Use first tag as category if available
-        users_favorited: product.users_favorited || 0,
     }); 
 
     if(error){throw new Error(`Error inserting product: ${error.message}`);}
@@ -288,7 +286,6 @@ export async function updateProduct(product: Product): Promise<void> {
         images:  product.image ? `${product.business_id}/images/${product.image}` : null,
         price: product.price,
         user_views: product.user_views,
-        users_favorited: product.users_favorited,
     }).eq('id', product.id);
 
     const {error: uploadError} = await supabase.storage.from('products').upload(fileName, product.image); 
