@@ -163,6 +163,7 @@ export const useBusinessForm = ({
           user_sentiments: null,
           logo_url: logoUrl,
           location: validated.location,
+          users_favorited: 0,
         };
 
         await insertBusiness(business);
