@@ -23,7 +23,7 @@ const Discover = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
-  const [searchFilters, setSearchFilters] = useState<BusinessQuery>({});
+  const [searchFilters, setSearchFilters] = useState<BusinessQuery>({category: searchParams.get("category") || ""});
   const [sortingFilter, setSortingFilter] = useState<string | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([])
   const navigate = useNavigate();
