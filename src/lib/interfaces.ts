@@ -29,7 +29,6 @@ export type Business = {
     category: Category; 
     description?: string;
     logo_url?: string;
-    products?: Product[];
     location: Location;
     contact_info?: ContactInfo;
     hours_of_operation: BusinessHours;
@@ -73,7 +72,6 @@ export type Product = {
     tags?: string[];
     reviews?: string[];
     user_views: number;
-    users_favorited: number;
     user_sentiments?: string;
 }
 
