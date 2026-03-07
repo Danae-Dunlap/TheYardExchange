@@ -107,7 +107,7 @@ export async function insertBusiness(business: Business): Promise<void> {
             logoUrl = fileName;
         }
     }
-    
+     
     const {error} = await supabase.from('businesses').insert({
         id: business.id,
         name: business.name, 
@@ -165,12 +165,17 @@ export async function updateBusiness(business: Business): Promise<void> {
  * @param businessId 
  */
 export async function deleteBusiness(businessId: string, user_id: string): Promise<void> {
-
     const {error: businessError} = await supabase.from('businesses').delete().eq('id', businessId);
+    const {error: userError} = await supabase.from('profiles').update({business_id: null}).eq('id', user_id);
+    const {error: roleError} = await supabase.from('user_roles').update({role: 'consumer'}).eq('user_id', user_id);
     const {error: imageError} = await supabase.storage.from('businesses').remove([`${businessId}/logo/`]);
+    const {error: productImageError} = await supabase.storage.from('products').remove([`${businessId}/**`]);
 
     if(businessError){throw new Error(`Error deleting business: ${businessError.message}`);}
+    if(userError){throw new Error(`Error updating profile: ${userError.message}`);}
+    if(roleError){throw new Error(`Error deleting role: ${roleError.message}`);}
     if(imageError){throw new Error(`Error deleting logo: ${imageError.message}`);}
+    if(productImageError){throw new Error(`Error deleting product images: ${productImageError.message}`);}
 }
 
 /**
@@ -228,7 +233,7 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
     
     // Upload image if provided
     if (imageFile) {
-        const fileName = `${product.id}/image/${imageFile.name}`;
+        const fileName = `${product.business_id}/${product.id}/image/${imageFile.name}`;
         const { error: uploadError } = await supabase.storage
             .from('products')
             .upload(fileName, imageFile, {

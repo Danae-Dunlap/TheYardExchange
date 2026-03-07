@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "../ui/badge";
-import { DollarSign, Heart } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { priceRange } from "@/lib/utils";
 import { Business } from "@/lib/interfaces";
 

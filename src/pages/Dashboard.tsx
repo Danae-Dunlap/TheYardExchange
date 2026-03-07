@@ -22,7 +22,7 @@ import { AddEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
-  const { user, isBusinessOwner, loading } = useAuth();
+  const { user, isBusinessOwner, loading, refreshProfileData, refreshRoles} = useAuth();
   const navigate = useNavigate();
   const [business, setbusiness] = useState<Business | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -58,6 +58,9 @@ const Dashboard = () => {
     if (!business || !user) return;
     try {
       await deleteBusiness(business.id, user.id);
+      await refreshRoles();
+      await refreshProfileData();
+      
       navigate("/");
     } catch (error) {
       console.error("Error deleting business:", error);
@@ -138,31 +141,7 @@ const Dashboard = () => {
       color: "text-accent"
     }
   ];
-
-  const recentMessages = [
-    {
-      id: 1,
-      from: "Sarah M.",
-      message: "Hi! Do you have availability this Saturday?",
-      time: "2 hours ago",
-      unread: true
-    },
-    {
-      id: 2,
-      from: "Marcus T.",
-      message: "Can I schedule a consultation?",
-      time: "5 hours ago",
-      unread: true
-    },
-    {
-      id: 3,
-      from: "Tasha W.",
-      message: "Thank you! The braids look amazing!",
-      time: "1 day ago",
-      unread: false
-    }
-  ];
-
+   
   if (loading || loadingBusiness) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   }
@@ -434,7 +413,7 @@ const Dashboard = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                  className="w-full justify-start gap-2 text-destructive hover:bg-red-500"
                   onClick={() => setDeleteDialogOpen(true)}
                 >
                   <Trash2 className="h-4 w-4" />
