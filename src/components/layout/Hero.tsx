@@ -51,7 +51,7 @@ const HomeHeroSection = () => {
 
                 <div className="flex flex-wrap justify-center gap-2">
                     {Object.values(Category).map((cat) => (
-                        <Badge onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                        <Badge key={cat} onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
                             {cat}
                         </Badge>
                     ))}

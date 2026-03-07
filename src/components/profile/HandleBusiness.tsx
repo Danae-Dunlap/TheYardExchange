@@ -27,6 +27,7 @@ const HandleBusinessOwner = () => {
     
         if (business) {
           toast({ title: "You're now a business owner!" });
+          
           navigate("/dashboard");
         } else {
           toast({ title: "Let's set up your business!" });
