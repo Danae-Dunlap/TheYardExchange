@@ -106,8 +106,11 @@ export async function insertBusiness(business: Business): Promise<void> {
             const fileName = `${business.id}/logo/${business.logo_url}`;
             logoUrl = fileName;
         }
+    }else{
+        //Backup Photo URL
+        logoUrl = "https://trpkzqwrjbmxlqftrosn.supabase.co/storage/v1/object/public/businesses/default/default-business-photo.png"; 
     }
-     
+
     const {error} = await supabase.from('businesses').insert({
         id: business.id,
         name: business.name, 
