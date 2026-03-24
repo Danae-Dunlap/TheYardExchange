@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Business, Category } from "@/lib/interfaces";
 import { fetchBusiness } from "@/lib/data/utils";
-
 // Layout & Components
 import Header from "@/components/layout/Header";
 import { HomeHeroSection } from "@/components/layout/Hero";
-import TrendingSection from "@/components/layout/Trending";
+import PostsSection from "@/components/layout/PostsSection";
 import FeaturedSection from "@/components/layout/Featured";
 import AIChatbot from "@/components/layout/AIChatbot";
 import Footer from "@/components/layout/Footer";
@@ -46,7 +45,7 @@ const Home = () => {
       <Header />
       <main>
         <HomeHeroSection />
-        <TrendingSection />
+        <PostsSection />
         <FeaturedSection featuredBusinesses={featuredBusinesses} />
         <AIChatbot />
       </main>
