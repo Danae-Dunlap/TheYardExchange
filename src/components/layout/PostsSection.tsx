@@ -3,7 +3,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MessageSquare, Trash2 } from "lucide-react";
 
 interface Post {
   id: string;
@@ -21,6 +25,8 @@ const PostsSection = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   // Fetch posts with profile info
   const fetchPosts = async () => {
@@ -56,6 +62,31 @@ const PostsSection = () => {
       await fetchPosts();
     }
     setLoading(false);
+  };
+
+  // Prompt delete confirmation
+  const confirmDelete = (postId: string) => {
+    setDeletingPostId(postId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Delete a post
+  const handleDelete = async () => {
+    if (!deletingPostId) return;
+
+    const { error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", deletingPostId);
+
+    if (error) {
+      console.error("Error deleting post:", error);
+    } else {
+      await fetchPosts();
+    }
+
+    setDeleteDialogOpen(false);
+    setDeletingPostId(null);
   };
 
   // Format timestamp
@@ -115,18 +146,30 @@ const PostsSection = () => {
             posts.map((post) => (
               <Card key={post.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
-                      {post.profiles?.full_name?.charAt(0)?.toUpperCase() || "?"}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
+                        {post.profiles?.full_name?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">
+                          {post.profiles?.full_name || "Unknown User"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatTime(post.created_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">
-                        {post.profiles?.full_name || "Unknown User"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTime(post.created_at)}
-                      </p>
-                    </div>
+                    {user && user.id === post.user_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => confirmDelete(post.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                   <p className="text-foreground">{post.content}</p>
                 </CardContent>
@@ -135,6 +178,27 @@ const PostsSection = () => {
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };
