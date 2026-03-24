@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { BusinessEvent } from "@/lib/interfaces";
-import { insertEvent } from "@/lib/data/utils";
+import { insertEvent, updateEvent } from "@/lib/data/utils";
 import { Card, CardContent } from '../ui/card';
 import { Calendar } from 'lucide-react';
 
@@ -30,6 +30,13 @@ const eventSchema = z.object({
 interface AddEventProps {
   businessId: string;
   businessName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+interface EditEventProps {
+  event: BusinessEvent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -205,6 +212,166 @@ const AddEvent = ({ businessId, businessName, open, onOpenChange, onSuccess }: A
   );
 };
 
+const EditEvent = ({ event, open, onOpenChange, onSuccess }: EditEventProps) => {
+  const startDate = new Date(event.start_date);
+  const endDate = new Date(event.end_date);
+
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    title: event.title,
+    description: event.description || "",
+    start_date: startDate.toISOString().split("T")[0],
+    start_time: startDate.toTimeString().slice(0, 5),
+    end_date: endDate.toISOString().split("T")[0],
+    end_time: endDate.toTimeString().slice(0, 5),
+  });
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const validated = eventSchema.parse(formData);
+
+      setLoading(true);
+
+      const startDateTime = new Date(`${validated.start_date}T${validated.start_time}`);
+      const endDateTime = new Date(`${validated.end_date}T${validated.end_time}`);
+
+      if (endDateTime <= startDateTime) {
+        throw new Error("End date/time must be after start date/time");
+      }
+
+      const updatedEvent: BusinessEvent = {
+        id: event.id,
+        business_id: event.business_id,
+        business_name: event.business_name,
+        title: validated.title,
+        description: validated.description || null,
+        start_date: startDateTime,
+        end_date: endDateTime,
+      };
+
+      await updateEvent(updatedEvent);
+
+      toast({
+        title: "Event updated!",
+        description: "Your event has been successfully updated.",
+      });
+
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to update event",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Event</DialogTitle>
+          <DialogDescription>
+            Update your event details
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-title">Event Title *</Label>
+            <Input
+              id="edit-title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g., Spring Hair Care Workshop"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-description">Description</Label>
+            <Textarea
+              id="edit-description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe your event..."
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-start_date">Start Date *</Label>
+              <Input
+                id="edit-start_date"
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-start_time">Start Time *</Label>
+              <Input
+                id="edit-start_time"
+                type="time"
+                value={formData.start_time}
+                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-end_date">End Date *</Label>
+              <Input
+                id="edit-end_date"
+                type="date"
+                value={formData.end_date}
+                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-end_time">End Time *</Label>
+              <Input
+                id="edit-end_time"
+                type="time"
+                value={formData.end_time}
+                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const Event = ({event}) => {
     return (
         <Card key={event.id}>
@@ -224,4 +391,4 @@ const Event = ({event}) => {
     );
 }
 
-export {AddEvent, Event};
+export {AddEvent, EditEvent, Event};
