@@ -28,6 +28,11 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     }
 
     if(owner_id){query = query.eq('owner_id', owner_id);}
+
+    // Only show hidden businesses to their owner; hide from all other queries
+    if (!owner_id && !filters?.owner_id) {
+        query = query.eq('is_hidden', false);
+    }
     const {data, error} = await query;
     if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
     if (!data) {return null;}
