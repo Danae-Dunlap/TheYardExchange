@@ -1,5 +1,3 @@
-import {z} from "zod"; 
-
 /**
  * Interfaces to represent possible search filters for querying databases
  */
@@ -49,6 +47,7 @@ export type UserProfile = {
     full_name?: string;
     avatar_url?: string;
     bio?: string;
+    business_id?: string;
     reviews?: string[];
     favorite_businesses?: string[]; 
     recently_viewed_businesses?: string[];
@@ -69,7 +68,7 @@ export type Product = {
     is_fav: boolean;
     price: number; 
     rating?: number;
-    tags?: string[];
+    tags?: string;
     reviews?: string[];
     user_views: number;
     user_sentiments?: string;

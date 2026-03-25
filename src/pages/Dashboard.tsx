@@ -17,12 +17,13 @@ import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteBusiness } from "@/lib/data/utils";
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
-import { AddProduct } from "@/components/business/Product";
+import AddProduct from "@/components/business/AddProduct";
+import { ProductCard } from "@/components/business/Product";
 import { AddEvent, EditEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
-  const { user, isBusinessOwner, loading, refreshProfileData, refreshRoles} = useAuth();
+  const { user, isBusinessOwner, loading, refreshProfileData, refreshRoles } = useAuth();
   const navigate = useNavigate();
   const [business, setbusiness] = useState<Business | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -62,7 +63,7 @@ const Dashboard = () => {
       await deleteBusiness(business.id, user.id);
       await refreshRoles();
       await refreshProfileData();
-      
+
       navigate("/");
     } catch (error) {
       console.error("Error deleting business:", error);
@@ -78,19 +79,25 @@ const Dashboard = () => {
     return new Date(event.end_date) >= new Date();
   };
 
+  const getProducts = async () => {
+    // Fetch products
+    const productsData = await fetchProducts(business.id);
+    setProducts(productsData || []);
+  }
+
   const loadBusinessData = async () => {
     if (!user) return;
 
     setLoadingBusiness(true);
     try {
       // Fetch business
-      const businessData = await fetchBusiness({owner_id: user.id});
+      const businessData = await fetchBusiness({ owner_id: user.id });
       if (businessData && businessData.length > 0) {
         setbusiness(businessData[0]);
 
         // Fetch reviews
         const reviewsData = await fetchReview({ business_id: businessData[0].id });
-        setReviews(reviewsData  || []);
+        setReviews(reviewsData || []);
 
         // Fetch products
         const productsData = await fetchProducts(businessData[0].id);
@@ -152,7 +159,7 @@ const Dashboard = () => {
       color: "text-accent"
     }
   ];
-   
+
   if (loading || loadingBusiness) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   }
@@ -316,32 +323,7 @@ const Dashboard = () => {
                           )}
                         </div>
                       ) : (
-                        products.map((product) => (
-                          <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                            <div className="flex items-center gap-4">
-                              {product.image && (
-                                <img
-                                  src={product.image}
-                                  alt={product.name}
-                                  className="h-16 w-16 rounded-lg object-cover"
-                                />
-                              )}
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-foreground">{product.name}</p>
-                                  <Badge variant="outline">{product.is_service ? "Service" : "Product"}</Badge>
-                                </div>
-                                {product.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
-                                )}
-                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                  <span>${product.price.toFixed(2)}</span>
-                                  {product.duration && <span>• {product.duration}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
+                        products.map((product) => <ProductCard key={product.id} product={product} onUpdate={getProducts} />)
                       )}
                     </div>
                   </CardContent>
@@ -436,7 +418,7 @@ const Dashboard = () => {
                   <Calendar className="h-4 w-4" />
                   Schedule Post
                 </Button>
-<Button
+                <Button
                   variant="outline"
                   className="w-full justify-start gap-2"
                   onClick={() => navigate("/edit-business")}
@@ -473,7 +455,6 @@ const Dashboard = () => {
         <>
           <AddProduct
             businessId={business.id}
-            businessName={business.name}
             open={addProductOpen}
             onOpenChange={setAddProductOpen}
             onSuccess={loadBusinessData}
