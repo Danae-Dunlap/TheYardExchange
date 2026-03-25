@@ -19,7 +19,7 @@ import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteBusiness 
 import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
 import AddProduct from "@/components/business/AddProduct";
 import { ProductCard } from "@/components/business/Product";
-import { AddEvent } from "@/components/business/Event";
+import { AddEvent, EditEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
 
 const Dashboard = () => {
@@ -32,6 +32,8 @@ const Dashboard = () => {
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [editEventOpen, setEditEventOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<BusinessEvent | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stats, setStats] = useState({
     views: 0,
@@ -66,6 +68,15 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error deleting business:", error);
     }
+  };
+
+  const handleEditEvent = (event: BusinessEvent) => {
+    setEditingEvent(event);
+    setEditEventOpen(true);
+  };
+
+  const isEventActive = (event: BusinessEvent) => {
+    return new Date(event.end_date) >= new Date();
   };
 
   const getProducts = async () => {
@@ -352,18 +363,40 @@ const Dashboard = () => {
                       ) : (
                         events.map((event) => (
                           <div key={event.id} className="p-4 border border-border rounded-lg">
-                            <h4 className="font-semibold text-foreground mb-2">{event.title}</h4>
-                            {event.description && (
-                              <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span>
-                                {new Date(event.start_date).toLocaleDateString()} {new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <span>→</span>
-                              <span>
-                                {new Date(event.end_date).toLocaleDateString()} {new Date(event.end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-semibold text-foreground">{event.title}</h4>
+                                  {isEventActive(event) ? (
+                                    <Badge variant="default">Active</Badge>
+                                  ) : (
+                                    <Badge variant="secondary">Ended</Badge>
+                                  )}
+                                </div>
+                                {event.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                                )}
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span>
+                                    {new Date(event.start_date).toLocaleDateString()} {new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <span>→</span>
+                                  <span>
+                                    {new Date(event.end_date).toLocaleDateString()} {new Date(event.end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </div>
+                              {isEventActive(event) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2 ml-4 flex-shrink-0"
+                                  onClick={() => handleEditEvent(event)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Edit
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))
@@ -434,6 +467,17 @@ const Dashboard = () => {
             onOpenChange={setAddEventOpen}
             onSuccess={loadBusinessData}
           />
+          {editingEvent && (
+            <EditEvent
+              event={editingEvent}
+              open={editEventOpen}
+              onOpenChange={(open) => {
+                setEditEventOpen(open);
+                if (!open) setEditingEvent(null);
+              }}
+              onSuccess={loadBusinessData}
+            />
+          )}
         </>
       )}
 

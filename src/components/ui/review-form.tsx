@@ -12,6 +12,7 @@ import {
 import { StarRating } from "@/components/ui/star-rating";
 import { useToast } from "@/hooks/use-toast";
 import { insertReview } from "@/lib/data/utils";
+import { moderateReviewText } from "@/lib/moderation";
 import type { Review } from "@/lib/interfaces";
 
 const reviewSchema = z.object({
@@ -47,6 +48,14 @@ export function ReviewForm({
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message });
+        return;
+      }
+    }
+
+    if (comment) {
+      const moderation = moderateReviewText(comment);
+      if (!moderation.passed) {
+        toast({ title: "Review not submitted", description: moderation.reason });
         return;
       }
     }
