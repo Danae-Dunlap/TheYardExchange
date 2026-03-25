@@ -1,363 +1,199 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { Heart, X, Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import { Product as ProductType } from "@/lib/interfaces";
-import { insertProduct } from "@/lib/data/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Product as ProductType } from "@/lib/interfaces";
+import { deleteProduct } from "@/lib/data/utils";
+import AddProduct from "./AddProduct";
 
-const productSchema = z.object({
-  name: z.string().trim().min(1, "Product/Service name is required").max(100),
-  description: z.string().trim().max(500).optional().or(z.literal("")),
-  price: z.number().min(0, "Price must be positive"),
-  duration: z.string().optional().or(z.literal("")),
-  tags: z.string().optional(),
-  is_service: z.boolean(),
-  image: z.instanceof(File).optional().refine(file => {
-    if (!file) return true;
-    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
-    return validTypes.includes(file.type);
-  }, "Invalid file type. Must be PNG or JPEG.").optional(),
-});
+const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: () => void;}) => {
+  const { profile, user, refreshProfileData } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(
+    profile?.favorite_products?.includes(product.id) || false
+  );
+  const [viewOpen, setViewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const isOwnProduct =
+    profile?.business_id &&
+    product.business_id &&
+    String(profile.business_id).trim() === String(product.business_id).trim();
 
-interface AddProductProps {
-  businessId: string;
-  businessName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}
+  // Favorite Logic
+  useEffect(() => {
+    const updateFavorites = async () => {
+      if (!profile || !user) return;
 
-const AddProduct = ({ businessId, businessName, open, onOpenChange, onSuccess }: AddProductProps) => {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    duration: "",
-    tags: "",
-    is_service: true,
-    image: null as File | null,
-  });
-  const { toast } = useToast();
+      const updated = Array.from(
+        new Set<string>(
+          isFavorite
+            ? [...profile.favorite_products, product.id]
+            : profile.favorite_products.filter((id) => id !== product.id)
+        )
+      );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+      await supabase
+        .from("profiles")
+        .update({ favorite_products: updated })
+        .eq("id", user.id);
 
-    try {
-      const validated = productSchema.parse({
-        name: formData.name,
-        description: formData.description || undefined,
-        price: parseFloat(formData.price),
-        duration: formData.duration || undefined,
-        tags: formData.tags || undefined,
-        is_service: formData.is_service,
-        image: formData.image || undefined,
-      });
+      refreshProfileData && (await refreshProfileData());
+    };
+    updateFavorites();
+  }, [isFavorite]);
 
-      setLoading(true);
 
-      const productId = crypto.randomUUID();
-      const tagsArray = validated.tags
-        ? validated.tags.split(",").map(tag => tag.trim()).filter(tag => tag.length > 0)
-        : [];
-
-      const product: ProductType = {
-        id: productId,
-        name: validated.name,
-        business_id: businessId,
-        business_name: businessName,
-        description: validated.description || null,
-        price: validated.price,
-        duration: validated.duration || null,
-        tags: tagsArray.length > 0 ? tagsArray : null,
-        is_service: validated.is_service,
-        image: validated.image ? validated.image.name : null,
-        user_views: 0,
-        is_fav: false,
-      };
-
-      await insertProduct(product, validated.image || undefined);
-
-      toast({
-        title: "Product/Service added!",
-        description: `${validated.is_service ? "Service" : "Product"} has been added to your business.`,
-      });
-
-      // Reset form
-      setFormData({
-        name: "",
-        description: "",
-        price: "",
-        duration: "",
-        tags: "",
-        is_service: true,
-        image: null,
-      });
-
-      onSuccess();
-      onOpenChange(false);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({
-          title: "Validation Error",
-          description: error.errors[0].message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to add product/service",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
+  // Delete
+  const handleDelete = async () => {
+    await deleteProduct(product.id);
+    setDeleteOpen(false);
+    onUpdate();
   };
 
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Product/Service</DialogTitle>
-          <DialogDescription>
-            Add a new product or service to your business listing
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Box Braids, Haircut, Consultation"
-              required
+    <>
+      {/* CARD */}
+      <div
+        onClick={() => setViewOpen(true)}
+        className="relative p-4 border rounded-lg hover:bg-muted/50 cursor-pointer"
+      >
+        <div className="flex gap-4">
+          {product.image && (
+            <img
+              src={product.image}
+              className="w-1/3 h-auto object-cover rounded"
+              alt={product.name}
             />
+          )}
+          <div className="flex-1">
+            <p className="font-medium">{product.name}</p>
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {product.description}
+            </p>
+            <p className="font-semibold mt-2">${product.price}</p>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="type">Type *</Label>
-            <div className="flex gap-4">
-              <Button
-                type="button"
-                variant={formData.is_service ? "default" : "outline"}
-                onClick={() => setFormData({ ...formData, is_service: true })}
-              >
-                Service
-              </Button>
-              <Button
-                type="button"
-                variant={!formData.is_service ? "default" : "outline"}
-                onClick={() => setFormData({ ...formData, is_service: false })}
-              >
-                Product
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe your product or service..."
-              rows={3}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price ($) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="0.00"
-                required
+        {/* Actions in top right corner */}
+        <div className="absolute top-1 right-1 flex gap-2">
+          {!isOwnProduct && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavorite(!isFavorite);
+              }}
+            >
+              <Heart
+                className="h-3 w-3"
+                fill={isFavorite ? "#ff474c" : "none"}
               />
-            </div>
+            </Button>
+          )}
 
-            {formData.is_service && (
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration</Label>
-                <Input
-                  id="duration"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  placeholder="e.g., 2 hours, 30 minutes"
-                />
-              </div>
+          {isOwnProduct && (
+            <>
+              <Ellipsis
+                className="cursor-pointer size-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditOpen(true);
+                }}
+              />
+              <X
+                className="cursor-pointer size-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteOpen(true);
+                }}
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* VIEW DIALOG */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{product.name}</DialogTitle>
+            <DialogDescription>
+              {product.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          {product.image && (
+            <img
+              src={product.image}
+              className="w-full h-60 object-cover rounded"
+            />
+          )}
+
+          <div className="space-y-2">
+            <p><strong>Price:</strong> ${product.price}</p>
+            {product.duration && (
+              <p><strong>Duration:</strong> {product.duration}</p>
             )}
+            {product.tags?.length ? (
+              <p><strong>Tags:</strong> {product.tags}</p>
+            ) : null}
           </div>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags</Label>
-            <Input
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              placeholder="e.g., braids, natural hair, quick service"
-            />
-            <p className="text-sm text-muted-foreground">Separate tags with commas</p>
-          </div>
+      {/* EDIT */}
+      <AddProduct
+        businessId={product.business_id}
+        open={editOpen}
+        productInfo={product}
+        isEdit={true}
+        onOpenChange={setEditOpen}
+        onSuccess={() => {
+          setEditOpen(false);
+          onUpdate();
+        }}
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="image">Image</Label>
-            <Input
-              id="image"
-              type="file"
-              accept="image/png, image/jpeg, image/jpg"
-              onChange={(e) => setFormData({ ...formData, image: e.target.files?.[0] || null })}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Product/Service"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {/* DELETE */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {product.name}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
-const Product = ({ service, }: { service: ProductType, }) => {
-  const { profile, user, refreshProfileData } = useAuth();
-  const [isFavorite, setIsFavorite] = useState(profile?.favorite_products.includes(service.id) || false);
 
-
-  useEffect(() => {
-    const addFavoriteProduct = async () => {
-      if (!profile || !user) return;
-      //prevent duplicate values
-      profile.favorite_products = Array.from(new Set<string>(
-        isFavorite ? [...profile.favorite_products, service.id] : profile.favorite_products.filter(id => id !== service.id)
-      ));
-
-      //Update User Profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ favorite_products: profile.favorite_products })
-        .eq('id', user.id);
-      if (profileError) { console.error("Error updating favorite products:", profileError.message); }
-
-      if (refreshProfileData) {
-        await refreshProfileData();
-      }
-    };
-    addFavoriteProduct();
-
-  }, [isFavorite, profile, user, refreshProfileData]);
-
-  return (
-    <div key={service.id} className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-      <div>
-        <p className="font-medium text-foreground">{service.name}</p>
-        <p className="text-sm text-muted-foreground">{service.description}</p>
-      </div>
-      <p className="font-semibold text-foreground">{service.price}</p>
-      {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
-
-      <Button
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
-        size="icon"
-        onClick={() => setIsFavorite(!isFavorite)}
-        title={!isFavorite ? "Add to Favorites" : "Remove from Favorites"}>
-        <Heart className="h-5 w-5" fill={isFavorite ? "#ff474c" : "none"} stroke={isFavorite ? "none" : "#a9a9a9"} />
-      </Button>
-    </div>
-
-  );
-}
-
-
-const FavoriteProduct = ({ service }: { service: ProductType }) => {
-  const { profile, user, refreshProfileData } = useAuth();
-  const [isFavorite, setIsFavorite] = useState(profile?.favorite_products.includes(service.id) || false);
-
-
-  useEffect(() => {
-    const addFavoriteProduct = async () => {
-      if (!profile || !user) return;
-      //prevent duplicate values
-      profile.favorite_products = Array.from(new Set<string>(
-        isFavorite ? [...profile.favorite_products, service.id] : profile.favorite_products.filter(id => id !== service.id)
-      ));
-
-      //Update User Profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ favorite_products: profile.favorite_products })
-        .eq('id', user.id);
-      if (profileError) { console.error("Error updating favorite products:", profileError.message); }
-
-      // refresh profile data in auth context so pages update
-      if (refreshProfileData) {
-        await refreshProfileData();
-      }
-    };
-    addFavoriteProduct();
-
-  }, [isFavorite, profile, user, refreshProfileData]);
-
-
-  return (
-    <div>
-      <div className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
-        <div>
-          <p className="font-medium text-foreground">{service.name}</p>
-          <p className="text-sm text-muted-foreground">{service.description}</p>
-        </div>
-        <p className="font-semibold text-foreground">{service.price}</p>
-        {service.duration && <p className="text-sm text-muted-foreground">{service.duration}</p>}
-
-        <div onClick={(e) => e.stopPropagation()}>
-          <Button
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-colors duration-150 hover:bg-gray-200"
-            size="icon"
-            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-              e.stopPropagation();
-              setIsFavorite(!isFavorite);
-            }}
-            title="Remove from Favorites"
-          >
-            <Heart
-              className="h-5 w-5"
-              fill={isFavorite ? "#ff474c" : "none"}
-              stroke={isFavorite ? "none" : "#a9a9a9"}
-            />
-          </Button>
-        </div>
-        <Link className="hover:bg-gray-200" key={service.business_id} to={`/business/${service.business_id}`}>
-          <p className="text-sm text-muted-foreground inline-flex">From: {service.business_name}</p>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-export { AddProduct, Product, FavoriteProduct };
+export { ProductCard };

@@ -165,6 +165,35 @@ export type Database = {
           },
         ]
       }
+      posts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           business_id: string
@@ -179,6 +208,7 @@ export type Database = {
           is_service: boolean
           price: number
           product_name: string
+          tags: string[] | null
           updated_at: string
           user_views: number | null
         }
@@ -195,6 +225,7 @@ export type Database = {
           is_service?: boolean
           price: number
           product_name: string
+          tags?: string[] | null
           updated_at?: string
           user_views?: number | null
         }
@@ -211,6 +242,7 @@ export type Database = {
           is_service?: boolean
           price?: number
           product_name?: string
+          tags?: string[] | null
           updated_at?: string
           user_views?: number | null
         }

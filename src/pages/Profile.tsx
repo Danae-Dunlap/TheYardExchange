@@ -3,7 +3,7 @@ import Footer from "@/components/layout/Footer";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import HandleBusinessOwner from "@/components/profile/HandleBusiness";
 import {BusinessCard} from "@/components/business/BusinessCard";
-import { FavoriteProduct } from "@/components/business/Product";
+import { ProductCard} from "@/components/business/Product";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { fetchBusiness, fetchProducts } from "@/lib/data/utils";
@@ -49,10 +49,9 @@ const ProfilePage = () => {
           <h2 className="text-2xl font-bold mb-4">Favorite Products</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {favoriteProducts.map((product) => (
-              <FavoriteProduct
+              <ProductCard
                 key={product.id}
-                service={product}
-                //disableLink={true} // don't navigate when used on profile page
+                product={product}
               />
             ))}
           </div>

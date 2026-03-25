@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             full_name: profile.full_name,
             email: profile.student_email,
             avatar_url: profile.avatar_url,
+            business_id: profile.business_id,
             bio: profile.bio,
             favorite_businesses: profile.favorite_businesses ? profile.favorite_businesses : [],
             recently_viewed_businesses: profile.recently_viewed_businesses ? profile.recently_viewed_businesses : [],
