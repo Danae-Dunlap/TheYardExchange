@@ -39,6 +39,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_reports: {
+        Row: {
+          id: string
+          reporter_id: string
+          business_id: string
+          reason: string
+          details: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reporter_id: string
+          business_id: string
+          reason: string
+          details?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          reporter_id?: string
+          business_id?: string
+          reason?: string
+          details?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_reports_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           category: Database["public"]["Enums"]["business_category"]
@@ -49,6 +91,7 @@ export type Database = {
           hours_of_operation: Json | null
           id: string
           is_featured: boolean
+          is_hidden: boolean
           location: Database["public"]["Enums"]["location"] | null
           logo_url: string | null
           most_popular_products: string[] | null
@@ -71,6 +114,7 @@ export type Database = {
           hours_of_operation?: Json | null
           id?: string
           is_featured?: boolean
+          is_hidden?: boolean
           location?: Database["public"]["Enums"]["location"] | null
           logo_url?: string | null
           most_popular_products?: string[] | null
@@ -92,6 +136,7 @@ export type Database = {
           hours_of_operation?: Json | null
           id?: string
           is_featured?: boolean
+          is_hidden?: boolean
           location?: Database["public"]["Enums"]["location"] | null
           logo_url?: string | null
           most_popular_products?: string[] | null
