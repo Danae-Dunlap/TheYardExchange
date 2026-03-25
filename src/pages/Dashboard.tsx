@@ -83,7 +83,6 @@ const Dashboard = () => {
     // Fetch products
     const productsData = await fetchProducts(business.id);
     setProducts(productsData || []);
-    console.log("Products Updated:", productsData);
   }
 
   const loadBusinessData = async () => {
