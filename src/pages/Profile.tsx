@@ -5,9 +5,12 @@ import HandleBusinessOwner from "@/components/profile/HandleBusiness";
 import {BusinessCard} from "@/components/business/BusinessCard";
 import { ProductCard} from "@/components/business/Product";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import { fetchBusiness, fetchProducts } from "@/lib/data/utils";
 import { Business, Product as ProductType } from "@/lib/interfaces";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ProfilePage = () => {
   const {profile} = useAuth();
@@ -25,7 +28,12 @@ const ProfilePage = () => {
       fetchFavorites();
     }
   }, [profile]);
-  
+
+  const favoriteStoresWithDeals = useMemo(
+    () => favoriteBusinesses.filter((b) => b.deal?.trim()),
+    [favoriteBusinesses]
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -34,6 +42,26 @@ const ProfilePage = () => {
         <ProfileInfo />
         <HandleBusinessOwner />
       </div>
+      {profile && favoriteStoresWithDeals.length > 0 && (
+        <div className="container mx-auto px-4 max-w-7xl pb-4">
+          <Alert>
+            <Sparkles className="h-4 w-4" />
+            <AlertTitle>Promotions at your favorite stores</AlertTitle>
+            <AlertDescription>
+              <ul className="mt-3 space-y-2 list-none p-0">
+                {favoriteStoresWithDeals.map((b) => (
+                  <li key={b.id} className="text-sm">
+                    <Link to={`/business/${b.id}`} className="font-medium text-foreground underline-offset-4 hover:underline">
+                      {b.name}
+                    </Link>
+                    <span className="text-muted-foreground"> — {b.deal}</span>
+                  </li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
       {profile && profile.favorite_businesses && profile.favorite_businesses.length > 0 && (
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           <h2 className="text-2xl font-bold mb-4">Favorite Businesses</h2>

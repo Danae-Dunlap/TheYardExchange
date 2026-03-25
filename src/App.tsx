@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ChatWidget } from "@/components/layout/ChatWidget";
+import { FavoriteStorePromotionNotifier } from "@/components/layout/FavoriteStorePromotionNotifier";
 import Home from "./pages/Home";
 import Discover from "./pages/Discover";
 import BusinessDetail from "./pages/BusinessDetail";
@@ -46,6 +47,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <FavoriteStorePromotionNotifier />
             <AuthenticatedChatWidget />
           </ChatProvider>
         </AuthProvider>
