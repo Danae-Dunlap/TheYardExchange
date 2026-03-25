@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { StarRating } from "@/components/ui/star-rating";
-import { ReviewForm } from "@/components/ui/review-form";
+import { ReviewForm } from "@/components/layout/Reviews/review-form";
 import { useToast } from "@/hooks/use-toast";
 import { fetchReview, fetchProfile, deleteReview, checkUserReviewExists } from "@/lib/data/utils";
 import type { Review, UserProfile } from "@/lib/interfaces";
@@ -51,7 +51,7 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
   const [loading, setLoading] = useState(true);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [reviewToDelete, setReviewToDelete] = useState<string | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<ReviewWithProfile | null>(null);
   const [hasExistingReview, setHasExistingReview] = useState(false);
   const { toast } = useToast();
 
@@ -113,15 +113,14 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
     setReviewFormOpen(true);
   };
 
-  const handleDeleteClick = (reviewId: string) => {
-    setReviewToDelete(reviewId);
+  const handleDeleteClick = (review: ReviewWithProfile) =>{
+    setReviewToDelete(review);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!reviewToDelete) return;
     try {
-      await deleteReview(reviewToDelete);
+      await deleteReview(reviewToDelete!.id, reviewToDelete.business_id);
       toast({ title: "Review deleted" });
       loadReviews();
       checkExistingReview();
@@ -205,7 +204,7 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteClick(review.id)}
+                          onClick={() => handleDeleteClick(review)}
                           aria-label="Delete review"
                         >
                           <Trash2 className="h-4 w-4" />
