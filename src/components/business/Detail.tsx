@@ -6,11 +6,11 @@ import { Event } from "./Event";
 import { Clock, MapPin, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatHours } from "./Hours";
-import { ReviewList } from "@/components/ui/review-list";
+import { ReviewList } from "@/components/layout/Reviews/review-list";
 import { priceRange } from "@/lib/utils";
 
 
-const DetailSection = ({ business, favorites, services, events }) => {
+const DetailSection = ({ business, favorites, services, events, onReviewChange }) => {
   const { user} = useAuth();
 
   return (
@@ -87,7 +87,7 @@ const DetailSection = ({ business, favorites, services, events }) => {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold text-foreground mb-4">Reviews</h3>
-              <ReviewList businessId={business.id} currentUserId={user?.id} />
+              <ReviewList businessId={business.id} currentUserId={user?.id} onReviewChange={onReviewChange} />
             </CardContent>
           </Card>
         </TabsContent>
