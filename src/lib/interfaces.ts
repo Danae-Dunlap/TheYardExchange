@@ -53,7 +53,8 @@ export type UserProfile = {
     recently_viewed_businesses?: string[];
     favorite_products?: string[];
     recent_searches?:string[];
-    recent_tags?: string[] 
+    recent_tags?: string[];
+    interests?: string[];
 }
 
 export type Product = {
@@ -159,3 +160,22 @@ export enum Location {
     Other = "Other", 
     Anon = "Contact Owner for Details"
 }
+
+export const Interests = [
+    "Art",
+    "Music",
+    "Sports",
+    "Technology",
+    "Travel",
+    "Fashion",
+    "Photography", 
+    "Beauty", 
+    "Nature", 
+    "Finance", 
+    "Reading", 
+    "Gaming", 
+    "Cooking", 
+    "Fitness",
+    "Film", 
+    "Education"
+]
