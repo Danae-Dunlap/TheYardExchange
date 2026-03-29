@@ -223,7 +223,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
             duration: product.duration,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
-            users_favorited: product.users_favorited,
+            user_favorited: product.users_favorited,
         }
     }));
 

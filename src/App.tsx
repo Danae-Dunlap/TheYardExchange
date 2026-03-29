@@ -18,6 +18,7 @@ import Profile from "./pages/Profile";
 import CreateBusiness from "./pages/CreateBusiness";
 import EditBusiness from "./pages/EditBusiness";
 import NotFound from "./pages/NotFound";
+import { ProductCard } from "./components/business/Product";
 
 const queryClient = new QueryClient();
 
