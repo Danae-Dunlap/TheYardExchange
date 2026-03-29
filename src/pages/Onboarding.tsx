@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { Interests } from "@/lib/interfaces";
 import bisonLogo from "@/assets/bison-logo.png";
 import type { User } from "@supabase/supabase-js";
 
@@ -20,6 +21,7 @@ const profileSchema = z.object({
     const validTypes = ["image/png", "image/jpeg"];
     return validTypes.includes(file.type);
   }, "Invalid file type. Must be PNG or JPEG.").optional(),
+  interest: z.string().array().optional()
 });
 
 const Onboarding = () => {
@@ -30,7 +32,8 @@ const Onboarding = () => {
     full_name: "",
     username: "",
     bio: "",
-    avatar_url: null as File | null
+    avatar_url: null as File | null,
+    interests: []
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -82,7 +85,8 @@ const Onboarding = () => {
         full_name: formData.full_name,
         username: formData.username || undefined,
         bio: formData.bio || undefined,
-        avatar_url: formData.avatar_url || undefined
+        avatar_url: formData.avatar_url || undefined,
+        interest: formData.interests || []
       });
 
       setLoading(true);
@@ -96,7 +100,8 @@ const Onboarding = () => {
           full_name: validated.full_name,
           username: validated.username || null,
           bio: validated.bio || null,
-          avatar_url: validated.avatar_url ? `${user.id}/avatar/${validated.avatar_url.name}` : null
+          avatar_url: validated.avatar_url ? `${user.id}/avatar/${validated.avatar_url.name}` : null,
+          user_interests: validated.interest || null
         });
 
       //Upload avatar if provided
@@ -217,6 +222,35 @@ const Onboarding = () => {
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+              <Label>Interests</Label>
+              <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                {Interests.map((interest) => {
+                  const selected = formData.interests?.includes(interest);
+                  return (
+                    <Button
+                      key={interest}
+                      id={`interest-${interest}`}
+                      type="button"
+                      onClick={() => {
+                        if (selected) {
+                          setFormData({ ...formData, interests: formData.interests?.filter((i) => i !== interest) });
+                        } else {
+                          setFormData({ ...formData, interests: [...(formData.interests || []), interest] });
+                        }
+                      }}
+                      className={`rounded-2xl py-2 px-4 text-sm font-medium transition-colors duration-150 ${
+                        selected
+                          ? "bg-indigo-800 text-white shadow-lg ring-2 ring-indigo-400 hover:bg-indigo-700"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}>
+                      {interest}
+                    </Button>
+                  );
+                })}
+              </div>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>

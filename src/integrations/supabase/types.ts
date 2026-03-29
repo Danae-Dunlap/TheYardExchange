@@ -265,7 +265,7 @@ export type Database = {
           is_service?: boolean
           price: number
           product_name: string
-          rating?: number
+          rating: number
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
@@ -316,6 +316,7 @@ export type Database = {
           reviews: string[] | null
           student_email: string
           updated_at: string
+          user_interests: string[] | null
           username: string
         }
         Insert: {
@@ -333,6 +334,7 @@ export type Database = {
           reviews?: string[] | null
           student_email: string
           updated_at?: string
+          user_interests?: string[] | null
           username?: string
         }
         Update: {
@@ -350,6 +352,7 @@ export type Database = {
           reviews?: string[] | null
           student_email?: string
           updated_at?: string
+          user_interests?: string[] | null
           username?: string
         }
         Relationships: []

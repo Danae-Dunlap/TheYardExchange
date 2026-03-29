@@ -277,6 +277,8 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         is_service: product.is_service || false,
         duration: product.duration || null,
         tags: productTags,
+        rating:0,
+        users_favorited: 0,
         category: productTags && productTags.length > 0 ? productTags[0] : null, // Use first tag as category if available
     }); 
 
@@ -406,6 +408,7 @@ export async function fetchProfile(user_id: string): Promise<UserProfile | null>
             favorite_businesses: profile.favorite_businesses,
             recently_viewed_businesses: profile.recently_viewed_businesses,
             favorite_products: profile.favorite_products,
+            interests: profile.user_interests || [],
         }
     }));
     
