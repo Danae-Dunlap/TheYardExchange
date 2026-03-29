@@ -82,6 +82,7 @@ const AddProduct = ({ businessId, open, productInfo, isEdit, onOpenChange, onSuc
         image: isEdit === false && validated.image ? validated.image.name : productInfo.image,
         user_views: isEdit === false ? 0 : productInfo?.user_views,
         is_fav: isEdit === false ? false : productInfo?.is_fav,
+        user_favorited: isEdit === false ? 0: productInfo?.user_favorited
       };
 
       if(isEdit){

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Business, Category } from "@/lib/interfaces";
+import { Business } from "@/lib/interfaces";
 import { fetchBusiness } from "@/lib/data/utils";
 // Layout & Components
 import Header from "@/components/layout/Header";

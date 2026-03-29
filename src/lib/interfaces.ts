@@ -71,7 +71,7 @@ export type Product = {
     tags?: string;
     reviews?: string[];
     user_views: number;
-    user_sentiments?: string;
+    user_favorited: number;
 }
 
 export type Review = {
