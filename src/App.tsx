@@ -18,6 +18,7 @@ import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import CreateBusiness from "./pages/CreateBusiness";
 import EditBusiness from "./pages/EditBusiness";
+import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import { ProductCard } from "./components/business/Product";
 
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/home" element={<Home />} />
               <Route path="/discover" element={<Discover />} />
+              <Route path="/community" element={<Community />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/business/:id" element={<BusinessDetail />} />
               <Route path="/dashboard" element={<Dashboard />} />
