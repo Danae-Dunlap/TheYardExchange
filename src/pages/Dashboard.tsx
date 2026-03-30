@@ -470,9 +470,9 @@ const Dashboard = () => {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Schedule Post
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/community')}>
+                  <Calendar className="h-4 w-4" />  
+                  Make A Post
                 </Button>
                 <Button
                   variant="outline"
