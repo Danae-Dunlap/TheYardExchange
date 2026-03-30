@@ -638,6 +638,57 @@ export async function deleteEvent(eventId: string): Promise<void> {
 }
 
 /**
+ * Fetches AI-powered business recommendations based on the user's past activity.
+ *
+ * @param profile - The user's profile containing activity data
+ * @returns Up to 4 recommended businesses
+ */
+export async function fetchRecommendedBusinesses(profile: UserProfile): Promise<Business[]> {
+    // Fetch all visible businesses
+    const allBusinesses = await fetchBusiness();
+    if (!allBusinesses || allBusinesses.length === 0) return [];
+
+    // Exclude user's own business
+    const catalog = allBusinesses.filter((b) => b.id !== profile.business_id);
+
+    // Build user context
+    const recentTags = profile.recent_tags ?? [];
+    const recentSearches = (profile.recent_searches ?? []).slice(0, 5);
+
+    // Derive favorite categories from favorited businesses
+    let favoriteCategories: string[] = [];
+    if (profile.favorite_businesses && profile.favorite_businesses.length > 0) {
+        const favBusinesses = await fetchBusiness({ business_id: profile.favorite_businesses });
+        favoriteCategories = [...new Set((favBusinesses ?? []).map((b) => b.category as string))];
+    }
+
+    const userContext = { recent_tags: recentTags, favorite_categories: favoriteCategories, recent_searches: recentSearches };
+
+    // Build trimmed catalog for AI (keep payload small)
+    const trimmedCatalog = catalog.map((b) => ({
+        id: b.id,
+        name: b.name,
+        category: b.category,
+        tags: b.tags ?? [],
+        price_range: b.price_range ?? null,
+        users_favorited: b.users_favorited,
+    }));
+
+    try {
+        const { data, error } = await supabase.functions.invoke("recommend", {
+            body: { userContext, businesses: trimmedCatalog },
+        });
+
+        if (error || !data?.recommendedIds?.length) return [];
+
+        const recommended = await fetchBusiness({ business_id: data.recommendedIds });
+        return recommended ?? [];
+    } catch {
+        return [];
+    }
+}
+
+/**
  * Recalculates the price range for a business based on ALL its products.
  * This ensures the price range is always accurate and derived only from products.
  * 
