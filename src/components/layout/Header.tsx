@@ -44,6 +44,12 @@ const Header = () => {
               >
                 Discover
               </Link>
+              <Link
+                to="/community"
+                className={isActive("/community") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
+              >
+                Community
+              </Link>
             {isBusinessOwner && (
               <Link
                 to="/dashboard"

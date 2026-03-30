@@ -53,7 +53,7 @@ const Home = () => {
       <Header />
       <main>
         <HomeHeroSection />
-        <PostsSection />
+        <PostsSection limit={4} />
         <RecommendedSection recommendedBusinesses={recommendedBusinesses} />
         <FeaturedSection featuredBusinesses={featuredBusinesses} />
         <AIChatbot />
