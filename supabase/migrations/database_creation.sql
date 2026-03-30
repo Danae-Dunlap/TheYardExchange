@@ -245,3 +245,26 @@ CREATE POLICY "Authenticated users can delete business logos"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (bucket_id = 'businesses');
+
+CREATE OR REPLACE FUNCTION public.is_promotion_valid()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- If current time is outside [start_date, end_date], mark inactive
+  IF (now() < NEW.start_date OR now() > NEW.end_date) THEN
+    NEW.is_active := false;
+  ELSE
+    NEW.is_active := true;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- If you already created the trigger before, drop it first to avoid duplicates
+DROP TRIGGER IF EXISTS check_promotion ON public.promotions;
+
+CREATE TRIGGER check_promotion
+BEFORE INSERT OR UPDATE ON public.promotions
+FOR EACH ROW
