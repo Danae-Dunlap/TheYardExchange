@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
+import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessPromotion, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
 import type { Json } from "@/integrations/supabase/types";
 
 /**
@@ -734,3 +734,38 @@ export async function recalculateBusinessRating(businessId: string): Promise<num
 
     return averageRating;
 }
+
+/**
+ * Fetches all promotions for a given business.
+ * 
+ * @param businessId business to search for
+ * @returns a list of promotion data
+ */
+export async function fetchPromotions(businessId: string): Promise<BusinessPromotion[]> {
+    const now: Date = new Date(); 
+
+    const { data, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('business_id', businessId)
+        .or('is_active.eq.true,start_date.lte.' + now.toISOString());
+
+    if (error) {
+        throw new Error(`Error fetching promotions: ${error.message}`);
+    }
+
+    const promotion: Promise<BusinessPromotion[] | null> = Promise.all(data.map(async (promotion: any) => 
+   { 
+    return{
+        id: promotion.id,
+        business_id: promotion.business_id,
+        start_date: promotion.start_date,
+        end_date: promotion.end_date,
+        title: promotion.title,
+        is_upcoming: promotion.start_date >= now,
+        description: promotion.description,
+    }}));
+
+    return promotion;
+}
+

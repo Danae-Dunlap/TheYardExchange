@@ -1,13 +1,14 @@
 import { useLocation, useParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
-import { fetchProducts, fetchReview, fetchEvents, fetchBusiness } from "@/lib/data/utils";
+import { fetchProducts, fetchReview, fetchEvents, fetchBusiness, fetchPromotions } from "@/lib/data/utils";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Business, Product, Review, BusinessEvent } from "@/lib/interfaces";
+import { Business, Product, Review, BusinessEvent, BusinessPromotion } from "@/lib/interfaces";
 import { BusinessDetailHeroSection } from "@/components/layout/Hero";
 import { supabase } from "@/integrations/supabase/client";
 import DetailSection from "@/components/business/Detail";
 import Sidebar from "@/components/business/Sidebar";
+import { Promotion } from "@/components/business/Promotion";
 
 
 const BusinessDetail = () => {
@@ -19,6 +20,7 @@ const BusinessDetail = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
+  const [promotions, setPromotions] = useState<BusinessPromotion[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refreshReviewSummary = useCallback(async (businessId: string) => {
@@ -46,6 +48,8 @@ const BusinessDetail = () => {
       setEvents(eventsData || []);
       const favoritesData = await fetchProducts(businessRecord.id, true);
       setFavorites(favoritesData || []);
+      const promotionsData = await fetchPromotions(businessRecord.id); 
+      setPromotions(promotionsData || []);
       
       const { error } = await supabase.from('businesses').update({ user_views: businessRecord.user_views + 1 }).eq('id', businessRecord.id);
       if(error) {console.error("Error updating user views:", error.message);}
@@ -96,6 +100,17 @@ const BusinessDetail = () => {
          
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {promotions.length !== 0 && (
+            <div className="lg:col-span-2">
+              <div className="space-y-4">
+                {promotions.map((promotion) => (
+                  <Promotion key={promotion.id} promotion={promotion} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <DetailSection
             business={business}
             favorites={favorites}

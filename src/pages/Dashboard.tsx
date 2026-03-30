@@ -10,13 +10,14 @@ import {
 import {
   TrendingUp, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus, Pencil, Trash2
+  BarChart3, Clock, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, deleteBusiness } from "@/lib/data/utils";
-import { Business, Review, Product, BusinessEvent } from "@/lib/interfaces";
+import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, fetchPromotions, deleteBusiness } from "@/lib/data/utils";
+import { Promotion, PromotionForm } from '@/components/business/Promotion';
+import { Business, Review, Product, BusinessEvent, BusinessPromotion } from "@/lib/interfaces";
 import AddProduct from "@/components/business/AddProduct";
 import { ProductCard } from "@/components/business/Product";
 import { AddEvent, EditEvent } from "@/components/business/Event";
@@ -29,8 +30,10 @@ const Dashboard = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
+  const [promotions, setPromotions] = useState<BusinessPromotion[]>([]);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addPromotionOpen, setAddPromotionOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [editEventOpen, setEditEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<BusinessEvent | null>(null);
@@ -106,6 +109,10 @@ const Dashboard = () => {
         // Fetch events
         const eventsData = await fetchEvents(businessData[0].id);
         setEvents(eventsData || []);
+
+        //Fetch Promotions
+        const promotionData = await fetchPromotions(businessData[0].id);
+        setPromotions(promotionData || []);
 
         // Calculate average rating
         const avgRating = reviewsData && reviewsData.length > 0
@@ -266,6 +273,7 @@ const Dashboard = () => {
                 <TabsTrigger value="messages">Messages</TabsTrigger>
                 <TabsTrigger value="services">Services</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="promotions">Promotions</TabsTrigger>
               </TabsList>
 
               <TabsContent value="messages">
@@ -404,6 +412,54 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              <TabsContent value="promotions">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Manage Promotions</CardTitle>
+                      {business && (
+                        <Button onClick={() => setAddPromotionOpen(true)} size="sm" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Create Promotion
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {promotions.length === 0 ? (
+                        <div className="text-center py-8">
+                          <BadgePercent className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">No promotions yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Create promotions to promote your business
+                          </p>
+                          {business && (
+                            <Button onClick={() => setAddPromotionOpen(true)} className="mt-4">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Your First Promotion
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                      <div>
+                        
+                        <p className="text-lg text-muted-foreground m-2">Upcoming Promotions</p>
+                          {promotions.filter((p) => p.is_upcoming).map((promotion) => (
+                            <Promotion key={promotion.id} promotion={promotion} onUpdate={loadBusinessData} />
+                        ))}
+
+                          <p className="text-lg text-muted-foreground m-2">Current Promotions</p>
+                          {promotions.filter((p) => !p.is_upcoming).map((promotion) => (
+                            <Promotion key={promotion.id} promotion={promotion} onUpdate={loadBusinessData} />
+                        ))}
+                      </div>
+                    )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
           </div>
 
@@ -457,6 +513,12 @@ const Dashboard = () => {
             businessId={business.id}
             open={addProductOpen}
             onOpenChange={setAddProductOpen}
+            onSuccess={loadBusinessData}
+          />
+          <PromotionForm
+            businessId={business.id}
+            open={addPromotionOpen}
+            onOpenChange={setAddPromotionOpen}
             onSuccess={loadBusinessData}
           />
           <AddEvent

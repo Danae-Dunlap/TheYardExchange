@@ -98,6 +98,16 @@ export type BusinessEvent = {
     end_date: Date;
 }
 
+export type BusinessPromotion = {
+    id:string; 
+    business_id: string;
+    title: string;
+    description?:string;
+    is_upcoming?: boolean;
+    start_date: Date;
+    end_date: Date;
+}
+
 export type ContactInfo = {
     email?: string, 
     tiktok?: string, 
