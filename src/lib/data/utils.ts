@@ -70,6 +70,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             price_range: business.price_range,
             hours_of_operation: business.hours_of_operation,
             tags: business.tags,
+            rating: business.rating ? Number(business.rating) : 0,
             user_views: Number(business.user_views || 0),
             users_favorited: business.users_favorited,
             most_popular_products: business.most_popular_products || null,
@@ -222,7 +223,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
             duration: product.duration,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
-            users_favorited: product.users_favorited,
+            user_favorited: product.users_favorited,
         }
     }));
 
@@ -276,6 +277,8 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         is_service: product.is_service || false,
         duration: product.duration || null,
         tags: productTags,
+        rating:0,
+        users_favorited: 0,
         category: productTags && productTags.length > 0 ? productTags[0] : null, // Use first tag as category if available
     }); 
 
@@ -405,6 +408,7 @@ export async function fetchProfile(user_id: string): Promise<UserProfile | null>
             favorite_businesses: profile.favorite_businesses,
             recently_viewed_businesses: profile.recently_viewed_businesses,
             favorite_products: profile.favorite_products,
+            interests: profile.user_interests || [],
         }
     }));
     
@@ -475,6 +479,9 @@ export async function insertReview(review: Review): Promise<void> {
 
     }); 
     if(error){throw new Error(`Error inserting review: ${error.message}`);}
+
+    // Keep business-level rating in sync after every review write.
+    await recalculateBusinessRating(review.business_id);
 }
 
 /**
@@ -483,9 +490,29 @@ export async function insertReview(review: Review): Promise<void> {
  * @param reviewId 
  * @throws Error if the delete operation fails.
  */
-export async function deleteReview(reviewId: string): Promise<void> {
+export async function deleteReview(reviewId: string, businessId?: string): Promise<void> {
+    let resolvedBusinessId = businessId;
+
+    if (!resolvedBusinessId) {
+        const { data: reviewData, error: reviewFetchError } = await supabase
+            .from('reviews')
+            .select('business_id')
+            .eq('id', reviewId)
+            .single();
+
+        if (reviewFetchError) {
+            throw new Error(`Error fetching review before delete: ${reviewFetchError.message}`);
+        }
+        resolvedBusinessId = reviewData?.business_id;
+    }
+
     const {error} = await supabase.from('reviews').delete().eq('id', reviewId);
     if(error){throw new Error(`Error deleting review: ${error.message}`);}
+
+    if (resolvedBusinessId) {
+        // Recompute average after delete so listing/detail ratings stay accurate.
+        await recalculateBusinessRating(resolvedBusinessId);
+    }
 }
 
 /**
@@ -737,4 +764,24 @@ export async function recalculatePriceRange(businessId: string): Promise<number[
     }
 
     return updatedPriceRange;
+}
+
+/**
+ * Recalculates and persists business rating from all business-level reviews.
+ *
+ * @param businessId - The business to update
+ * @returns The calculated average rating
+ */
+export async function recalculateBusinessRating(businessId: string): Promise<number> {
+    const averageRating = await calculateAverageRating(businessId);
+    const { error } = await supabase
+        .from('businesses')
+        .update({ rating: averageRating })
+        .eq('id', businessId);
+
+    if (error) {
+        throw new Error(`Error updating business rating: ${error.message}`);
+    }
+
+    return averageRating;
 }

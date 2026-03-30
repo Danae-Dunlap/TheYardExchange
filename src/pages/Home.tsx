@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Business } from "@/lib/interfaces";
 import { fetchBusiness, fetchRecommendedBusinesses } from "@/lib/data/utils";
+
 // Layout & Components
 import Header from "@/components/layout/Header";
 import { HomeHeroSection } from "@/components/layout/Hero";

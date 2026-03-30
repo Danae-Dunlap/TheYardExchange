@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { Heart, X, Ellipsis } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Heart, X, Ellipsis, Star } from "lucide-react";
+import {VisuallyHidden} from "@radix-ui/react-visually-hidden"
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
+  DialogTitle
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -16,15 +16,16 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Product as ProductType } from "@/lib/interfaces";
-import { deleteProduct } from "@/lib/data/utils";
+import { Product as ProductType, Review as ReviewType } from "@/lib/interfaces";
+import { deleteProduct, calculateAverageRating} from "@/lib/data/utils";
+import { ReviewList } from "../layout/Reviews/review-list";
 import AddProduct from "./AddProduct";
 
-const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: () => void;}) => {
+const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: () => void; }) => {
   const { profile, user, refreshProfileData } = useAuth();
   const [isFavorite, setIsFavorite] = useState(
     profile?.favorite_products?.includes(product.id) || false
@@ -37,6 +38,23 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
     product.business_id &&
     String(profile.business_id).trim() === String(product.business_id).trim();
 
+  const updateProductRating = async () => {
+    const rating = await calculateAverageRating(product.business_id, product.id); 
+    const { error } = await supabase.from('products').update({ rating }).eq('id', product.id);
+    product.rating = rating;
+    if(error){console.error("Error updating product rating:", error);}
+  };
+
+
+  useEffect(() => {
+    const updateProductViews = async () => {
+      const { error } = await supabase.from('products').update({ user_views: product.user_views + 1 }).eq('id', product.id);
+      if(error){console.error("Error updating product views:", error);}
+    }
+    updateProductViews();
+  }, [viewOpen]);
+
+ 
   // Favorite Logic
   useEffect(() => {
     const updateFavorites = async () => {
@@ -74,27 +92,41 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
       {/* CARD */}
       <div
         onClick={() => setViewOpen(true)}
-        className="relative p-4 border rounded-lg hover:bg-muted/50 cursor-pointer"
+        className="relative flex gap-4 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition"
       >
-        <div className="flex gap-4">
+        {/* IMAGE */}
+        <div className="w-28 h-28 shrink-0 bg-muted rounded-lg overflow-hidden flex items-center justify-center">
           {product.image && (
             <img
               src={product.image}
-              className="w-1/3 h-auto object-cover rounded"
               alt={product.name}
+              className="w-full h-full object-cover"
             />
           )}
-          <div className="flex-1">
-            <p className="font-medium">{product.name}</p>
-            <p className="text-sm text-muted-foreground line-clamp-2">
+        </div>
+
+        {/* TEXT CONTENT */}
+        <div className="flex flex-col flex-1 justify-between">
+          <div>
+            <p className="text-lg font-semibold">{product.name}</p>
+            <p className="text-md text-muted-foreground line-clamp-3">
               {product.description}
             </p>
-            <p className="font-semibold mt-2">${product.price}</p>
+          </div>
+
+          <div className="flex items-center justify-between mt-2">
+            <p className="font-semibold text-base">${product.price}</p>
+
+            {/* Optional Rating */}
+            <div className="flex items-center gap-1 text-sm">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span>{product.rating?.toFixed(1) || 'N/A'}</span>
+            </div>
           </div>
         </div>
 
-        {/* Actions in top right corner */}
-        <div className="absolute top-1 right-1 flex gap-2">
+        {/* ACTIONS */}
+        <div className="absolute top-2 right-2 flex gap-2">
           {!isOwnProduct && (
             <Button
               size="icon"
@@ -105,7 +137,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
               }}
             >
               <Heart
-                className="h-3 w-3"
+                className="h-4 w-4"
                 fill={isFavorite ? "#ff474c" : "none"}
               />
             </Button>
@@ -134,30 +166,56 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
 
       {/* VIEW DIALOG */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <VisuallyHidden>
+          <DialogTitle className="text-2xl font-bold">{product.name}</DialogTitle>
+          <DialogDescription>{product.description}</DialogDescription>
+        </VisuallyHidden>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{product.name}</DialogTitle>
-            <DialogDescription>
-              {product.description}
-            </DialogDescription>
-          </DialogHeader>
+          <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between my-4">
+                <h2 className="text-2xl font-bold">{product.name}</h2>
+                <p className="text-lg font-semibold">${product.price}</p>
+              </div>
 
-          {product.image && (
-            <img
-              src={product.image}
-              className="w-full h-60 object-cover rounded"
-            />
-          )}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="w-full h-64 md:h-80 bg-muted rounded-lg overflow-hidden flex items-center justify-center">
+                  {product.image && (
+                    <img
+                      src={product.image}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
 
-          <div className="space-y-2">
-            <p><strong>Price:</strong> ${product.price}</p>
-            {product.duration && (
-              <p><strong>Duration:</strong> {product.duration}</p>
-            )}
-            {product.tags?.length ? (
-              <p><strong>Tags:</strong> {product.tags}</p>
-            ) : null}
-          </div>
+                <div className="text-base text-muted-foreground leading-relaxed">
+                  {product.description}
+                </div>
+              </div>
+
+
+              <div className="mt-6 space-y-2 text-sm">
+                {product.duration && (
+                  <p><strong>Duration:</strong> {product.duration}</p>
+                )}
+
+                {product.tags?.length ? (
+                  <p><strong>Tags:</strong> {product.tags}</p>
+                ) : null}
+              </div>
+
+              {/* REVIEWS PLACEHOLDER */}
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-2">Reviews</h3>
+                <ReviewList
+                  businessId={product.business_id}
+                  productId={product.id}
+                  currentUserId={user.id}
+                  onReviewChange={updateProductRating}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         </DialogContent>
       </Dialog>
 

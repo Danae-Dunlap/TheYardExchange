@@ -41,37 +41,30 @@ export type Database = {
     Tables: {
       business_reports: {
         Row: {
-          id: string
-          reporter_id: string
           business_id: string
-          reason: string
-          details: string | null
           created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string
         }
         Insert: {
-          id?: string
-          reporter_id: string
           business_id: string
-          reason: string
-          details?: string | null
           created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
         }
         Update: {
-          id?: string
-          reporter_id?: string
           business_id?: string
-          reason?: string
-          details?: string | null
           created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "business_reports_reporter_id_fkey"
-            columns: ["reporter_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "business_reports_business_id_fkey"
             columns: ["business_id"]
@@ -253,9 +246,11 @@ export type Database = {
           is_service: boolean
           price: number
           product_name: string
+          rating: number
           tags: string[] | null
           updated_at: string
           user_views: number | null
+          users_favorited: number
         }
         Insert: {
           business_id: string
@@ -270,9 +265,11 @@ export type Database = {
           is_service?: boolean
           price: number
           product_name: string
+          rating: number
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
+          users_favorited?: number
         }
         Update: {
           business_id?: string
@@ -287,9 +284,11 @@ export type Database = {
           is_service?: boolean
           price?: number
           product_name?: string
+          rating?: number
           tags?: string[] | null
           updated_at?: string
           user_views?: number | null
+          users_favorited?: number
         }
         Relationships: [
           {
@@ -317,6 +316,7 @@ export type Database = {
           reviews: string[] | null
           student_email: string
           updated_at: string
+          user_interests: string[] | null
           username: string
         }
         Insert: {
@@ -334,6 +334,7 @@ export type Database = {
           reviews?: string[] | null
           student_email: string
           updated_at?: string
+          user_interests?: string[] | null
           username?: string
         }
         Update: {
@@ -351,6 +352,7 @@ export type Database = {
           reviews?: string[] | null
           student_email?: string
           updated_at?: string
+          user_interests?: string[] | null
           username?: string
         }
         Relationships: []

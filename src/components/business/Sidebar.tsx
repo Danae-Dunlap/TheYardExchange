@@ -30,10 +30,6 @@ const Sidebar = ({business}) => {
                 <Separator className="my-4" />
 
                 <div className="space-y-3">
-                  <Button variant="ghost" className="w-full justify-start gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Get Directions
-                  </Button>
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-2 text-destructive hover:text-destructive"

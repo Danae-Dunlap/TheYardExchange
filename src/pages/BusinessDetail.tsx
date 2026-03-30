@@ -1,7 +1,7 @@
 import { useLocation, useParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { fetchProducts, fetchReview, fetchEvents, fetchBusiness } from "@/lib/data/utils";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Business, Product, Review, BusinessEvent } from "@/lib/interfaces";
 import { BusinessDetailHeroSection } from "@/components/layout/Hero";
@@ -21,6 +21,17 @@ const BusinessDetail = () => {
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const refreshReviewSummary = useCallback(async (businessId: string) => {
+    const [reviewsData, refreshedBusiness] = await Promise.all([
+      fetchReview({ business_id: businessId }),
+      fetchBusiness({ business_id: [businessId] }),
+    ]);
+    setReviews(reviewsData || []);
+    if (refreshedBusiness?.[0]) {
+      setBusiness(refreshedBusiness[0]);
+    }
+  }, []);
+
   useEffect(() => {
     const loadBusinessData = async () => {
       const fetched = await fetchBusiness({ business_id: [id] });
@@ -30,8 +41,7 @@ const BusinessDetail = () => {
       // Fetch business details after business is loaded
       const servicesData = await fetchProducts(businessRecord.id);
       setServices(servicesData || []);
-      const reviewsData = await fetchReview({ business_id: businessRecord.id });
-      setReviews(reviewsData || []);
+      await refreshReviewSummary(businessRecord.id);
       const eventsData = await fetchEvents(businessRecord.id);
       setEvents(eventsData || []);
       const favoritesData = await fetchProducts(businessRecord.id, true);
@@ -61,7 +71,7 @@ const BusinessDetail = () => {
     }
 
     loadBusinessData();
-  }, [id, location.state, profile, user]);
+  }, [id, location.state, profile, refreshReviewSummary, user]);
 
   if (loading) {
     return (
@@ -86,7 +96,13 @@ const BusinessDetail = () => {
          
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <DetailSection business={business} favorites={favorites} services={services} events={events} />
+          <DetailSection
+            business={business}
+            favorites={favorites}
+            services={services}
+            events={events}
+            onReviewChange={() => refreshReviewSummary(business.id)}
+          />
           <Sidebar business={business} />
         </div>
       </div>
