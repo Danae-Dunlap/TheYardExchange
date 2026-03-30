@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Discover from "./pages/Discover";
 import BusinessDetail from "./pages/BusinessDetail";
 import Dashboard from "./pages/Dashboard";
+import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
@@ -36,15 +37,16 @@ const App = () => (
         <AuthProvider>
           <ChatProvider>
             <Routes>
-            <Route path="/" element={<Auth />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/discover" element={<Discover />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/business/:id" element={<BusinessDetail />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/create-business" element={<CreateBusiness />} />
-            <Route path="/edit-business" element={<EditBusiness />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/discover" element={<Discover />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/business/:id" element={<BusinessDetail />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/create-business" element={<CreateBusiness />} />
+              <Route path="/edit-business" element={<EditBusiness />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

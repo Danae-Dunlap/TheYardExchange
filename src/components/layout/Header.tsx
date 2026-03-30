@@ -25,37 +25,41 @@ const Header = () => {
   return (
     <header className="border-b border-border bg-card sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/home" className="flex items-center gap-2">
+        <Link to={user ? "/home" : "/"} className="flex items-center gap-2">
           <img src={bisonLogo} alt="The Yard Exchange Bison Logo" className="h-8 w-8" />
           <h1 className="text-xl font-bold text-foreground">The Yard Exchange</h1>
         </Link>
         <nav className="hidden md:flex items-center gap-6">
-          <Link 
-            to="/home" 
-            className={isActive("/home") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
-          >
-            Home
-          </Link>
-          <Link 
-            to="/discover" 
-            className={isActive("/discover") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
-          >
-            Discover
-          </Link>
-          {isBusinessOwner && (
-            <Link 
-              to="/dashboard" 
-              className={isActive("/dashboard") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
+          {user && (
+            <>
+              <Link
+                to="/home"
+                className={isActive("/home") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
+              >
+                Home
+              </Link>
+              <Link
+                to="/discover"
+                className={isActive("/discover") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
+              >
+                Discover
+              </Link>
+            {isBusinessOwner && (
+              <Link
+                to="/dashboard"
+                className={isActive("/dashboard") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
+              >
+                Dashboard
+              </Link>
+            )}
+            <Link
+              to="/profile"
+              className={isActive("/profile") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
             >
-              Dashboard
+              Profile
             </Link>
-          )}
-          <Link 
-            to="/profile" 
-            className={isActive("/profile") ? "text-primary font-semibold" : "text-foreground hover:text-primary transition-colors"}
-          >
-            Profile
-          </Link>
+          </>
+        )}
         </nav>
         {user ? (
           <div className="flex items-center gap-2">
@@ -67,7 +71,7 @@ const Header = () => {
             <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
           </div>
         ) : (
-          <Link to="/">
+          <Link to="/auth">
             <Button variant="outline">Sign In</Button>
           </Link>
         )}
