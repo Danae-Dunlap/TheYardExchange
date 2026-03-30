@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchBusiness } from "@/lib/data/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { parseChatEdgeResponse } from "@/lib/ai/aiService";
 
 type Role = "user" | "assistant";
 interface Message { role: Role; content: string; }
@@ -53,7 +54,11 @@ export function useChat() {
         body: { messages: apiMessages, businessContext: businessContext ?? { businesses: [] } },
       });
       if (error) throw error;
-      setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
+      const parsed = parseChatEdgeResponse(data);
+      if (parsed.fallback) {
+        console.warn(JSON.stringify({ tag: "[AI:client]", event: "chat_used_fallback" }));
+      }
+      setMessages((prev) => [...prev, { role: "assistant", content: parsed.message }]);
     } catch (err: any) {
       if (err?.context) {
         err.context.json().then((body: any) => console.error("Chat error body:", body)).catch(() => {});

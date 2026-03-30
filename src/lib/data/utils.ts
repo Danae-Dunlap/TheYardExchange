@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { deterministicRecommendIdsWithContext } from "@/lib/ai/aiFallback";
+import { parseRecommendEdgeResponse } from "@/lib/ai/aiService";
 import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessPromotion, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -706,12 +708,39 @@ export async function fetchRecommendedBusinesses(profile: UserProfile): Promise<
             body: { userContext, businesses: trimmedCatalog },
         });
 
-        if (error || !data?.recommendedIds?.length) return [];
+        const parsed = parseRecommendEdgeResponse(error ? null : data);
+        let ids = parsed.recommendedIds;
 
-        const recommended = await fetchBusiness({ business_id: data.recommendedIds });
+        // Redundancy: deterministic fallback when invoke fails or no ids (Edge may still set fallback: true with ids)
+        if (error || ids.length === 0) {
+            console.warn(
+                JSON.stringify({
+                    tag: "[AI:client]",
+                    event: "recommend_fallback",
+                    invokeError: Boolean(error),
+                    emptyIds: ids.length === 0,
+                    edgeFallback: parsed.fallback,
+                }),
+            );
+            ids = deterministicRecommendIdsWithContext(trimmedCatalog, userContext, 4);
+        }
+
+        if (ids.length === 0) return [];
+
+        const recommended = await fetchBusiness({ business_id: ids });
         return recommended ?? [];
-    } catch {
-        return [];
+    } catch (e) {
+        console.warn(
+            JSON.stringify({
+                tag: "[AI:client]",
+                event: "recommend_invoke_exception",
+                error: e instanceof Error ? e.message : String(e),
+            }),
+        );
+        const ids = deterministicRecommendIdsWithContext(trimmedCatalog, userContext, 4);
+        if (ids.length === 0) return [];
+        const recommended = await fetchBusiness({ business_id: ids });
+        return recommended ?? [];
     }
 }
 
