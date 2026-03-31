@@ -77,6 +77,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bad-words": "^3.0.3",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
