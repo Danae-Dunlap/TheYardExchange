@@ -51,8 +51,12 @@ const BusinessDetail = () => {
       const promotionsData = await fetchPromotions(businessRecord.id); 
       setPromotions(promotionsData || []);
       
-      const { error } = await supabase.from('businesses').update({ user_views: businessRecord.user_views + 1 }).eq('id', businessRecord.id);
-      if(error) {console.error("Error updating user views:", error.message);}
+      const { error: viewError } = await supabase.rpc("record_business_profile_view", {
+        p_business_id: businessRecord.id,
+      });
+      if (viewError) {
+        console.error("Error recording profile view:", viewError.message);
+      }
 
       // Update user behavior after business is loaded (only if auth info present)
       if (user && profile) {
