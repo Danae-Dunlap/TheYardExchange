@@ -4,35 +4,80 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
 import { User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { UserProfile } from "@/lib/interfaces";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import Cropper, { Area } from "react-easy-crop";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   username: z.string().trim().max(20, "Username must be less than 20 characters"),
   bio: z.string().trim().max(100, "Create a short bio to introduce yourself to possible buyers!").optional().or(z.literal("")),
-  avatar_url: z.instanceof(File).optional().refine(file => {
-    if (!file) return true;
-    const validTypes = ["image/png", "image/jpeg"];
-    return validTypes.includes(file.type);
-  }, "Invalid file type. Must be PNG or JPEG.")
 });
+
+/**
+ * Takes an image source URL and a pixel crop area,
+ * draws the cropped region onto a canvas, and returns it as a Blob.
+ */
+async function getCroppedImageBlob(
+  imageSrc: string,
+  cropPixels: Area
+): Promise<Blob> {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.src = imageSrc;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Failed to load image"));
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = cropPixels.width;
+  canvas.height = cropPixels.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get canvas context");
+
+  ctx.drawImage(
+    image,
+    cropPixels.x,
+    cropPixels.y,
+    cropPixels.width,
+    cropPixels.height,
+    0,
+    0,
+    cropPixels.width,
+    cropPixels.height
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas toBlob failed"));
+    }, "image/jpeg", 0.9);
+  });
+}
 
 const ProfileInfo = ({ }) => {
   const { user, loading: authLoading } = useAuth();
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [avatarPublicUrl, setAvatarPublicUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
     username: "",
     bio: "",
-    avatar_url: null as File | null,
   });
+
+  // Cropper state
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -70,21 +115,57 @@ const ProfileInfo = ({ }) => {
             full_name: profileData.full_name || "",
             username: profileData.username || "",
             bio: profileData.bio || "",
-            avatar_url: null as File | null
           });
 
-          const { data: profilePicture } = await supabase
-            .storage
-            .from("accounts")
-            .getPublicUrl(`${user.id}/avatar/${profile?.avatar_url || ""}`);
+          if (profile?.avatar_url) {
+            const { data: profilePicture } = supabase
+              .storage
+              .from("accounts")
+              .getPublicUrl(`${user.id}/avatar/${profile.avatar_url}`);
 
-          profileData.avatar_url = profilePicture?.publicUrl;
-
-        };
-      }
+            if (profilePicture?.publicUrl) {
+              setAvatarPublicUrl(profilePicture.publicUrl);
+            }
+          }
+        }
+      };
       fetchProfile();
     }
   }, [user, authLoading, navigate]);
+
+  const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/png", "image/jpeg"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a PNG or JPEG image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageSrc(null);
+    setCroppedAreaPixels(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -94,26 +175,62 @@ const ProfileInfo = ({ }) => {
         full_name: formData.full_name,
         username: formData.username || undefined,
         bio: formData.bio || undefined,
-        avatar_url: formData.avatar_url || undefined,
       });
 
       setLoading(true);
 
+      const updateData: Record<string, unknown> = {
+        full_name: validated.full_name,
+        username: validated.username || null,
+        bio: validated.bio || null,
+      };
+
+      // Handle cropped image upload if user selected and cropped an image
+      if (imageSrc && croppedAreaPixels) {
+        const croppedBlob = await getCroppedImageBlob(imageSrc, croppedAreaPixels);
+        const fileName = `avatar_${Date.now()}.jpg`;
+        const filePath = `${user.id}/avatar/${fileName}`;
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from("accounts")
+          .upload(filePath, croppedBlob, {
+            upsert: true,
+            contentType: "image/jpeg",
+          });
+
+        if (uploadError) {
+          toast({
+            title: "Error uploading image",
+            description: uploadError.message,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        updateData.avatar_url = fileName;
+
+        const { data: newUrl } = supabase
+          .storage
+          .from("accounts")
+          .getPublicUrl(filePath);
+
+        if (newUrl?.publicUrl) {
+          setAvatarPublicUrl(`${newUrl.publicUrl}?t=${Date.now()}`);
+        }
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: validated.full_name,
-          username: validated.username || null,
-          bio: validated.bio || null,
-          avatar_url: validated.avatar_url ? validated.avatar_url.name : null
-        })
+        .update(updateData)
         .eq("id", user.id);
 
       if (error) {
         toast({
           title: "Error",
           description: error.message,
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -122,31 +239,24 @@ const ProfileInfo = ({ }) => {
         ...profile!,
         full_name: validated.full_name,
         username: validated.username || null,
-        avatar_url: validated.avatar_url ? `${user.id}/avatar/${formData.avatar_url?.name}` : null,
-        bio: validated.bio || null
+        avatar_url: updateData.avatar_url as string ?? profile?.avatar_url ?? null,
+        bio: validated.bio || null,
       });
-      const { error: uploadError } = await supabase
-        .storage
-        .from("accounts")
-        .update(`${user.id}/avatar/${formData.avatar_url?.name}`, formData.avatar_url);
 
-      if (uploadError) {
-        toast({
-          title: "Error",
-          description: uploadError.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({ title: "Profile updated!" });
-      }
+      // Reset cropper state
+      setImageSrc(null);
+      setCroppedAreaPixels(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
 
+      toast({ title: "Profile updated!" });
       setEditing(false);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
           title: "Validation Error",
           description: error.errors[0].message,
-          variant: "destructive"
+          variant: "destructive",
         });
       }
     } finally {
@@ -159,9 +269,17 @@ const ProfileInfo = ({ }) => {
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
-            </div>
+            {avatarPublicUrl ? (
+              <img
+                src={avatarPublicUrl}
+                alt="Profile picture"
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-8 w-8 text-primary" />
+              </div>
+            )}
             <div>
               <CardTitle>{profile?.full_name || "Your Profile"}</CardTitle>
               <CardDescription>{profile?.email}</CardDescription>
@@ -190,16 +308,54 @@ const ProfileInfo = ({ }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="avatar_url">Profile Picture</Label>
-                  <Input
-                    id="avatar_url"
-                    type="file"
-                    accept="image/png, image/jpeg"
-                    onChange={(e) => setFormData({ ...formData, avatar_url: e.target.files?.[0] || null })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Profile Picture</Label>
+                <Input
+                  id="avatar_url"
+                  type="file"
+                  accept="image/png, image/jpeg"
+                  onChange={handleFileSelect}
+                />
+
+                {imageSrc && (
+                  <div className="mt-3 space-y-3">
+                    <div
+                      className="relative w-full rounded-lg overflow-hidden bg-muted"
+                      style={{ height: "300px" }}
+                    >
+                      <Cropper
+                        image={imageSrc}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={1}
+                        cropShape="round"
+                        showGrid={false}
+                        onCropChange={setCrop}
+                        onZoomChange={setZoom}
+                        onCropComplete={onCropComplete}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-sm whitespace-nowrap">Zoom</Label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.1}
+                        value={zoom}
+                        onChange={(e) => setZoom(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -216,7 +372,7 @@ const ProfileInfo = ({ }) => {
                 <Button onClick={handleSave} disabled={loading}>
                   {loading ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button variant="outline" onClick={() => setEditing(false)}>
+                <Button variant="outline" onClick={() => { setEditing(false); handleRemoveImage(); }}>
                   Cancel
                 </Button>
               </div>
@@ -244,8 +400,8 @@ const ProfileInfo = ({ }) => {
           )}
         </CardContent>
       </Card>
-
-    </div>);
-}
+    </div>
+  );
+};
 
 export default ProfileInfo;
