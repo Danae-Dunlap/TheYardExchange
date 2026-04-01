@@ -1,21 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  TrendingUp, MessageCircle,
+  TrendingUp, TrendingDown, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Clock, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent
+  BarChart3, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent,   Sparkles,
+  AlertCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchBusiness, fetchReview, fetchProducts, fetchEvents, fetchPromotions, deleteBusiness } from "@/lib/data/utils";
+import {
+  fetchBusiness,
+  fetchReview,
+  fetchProducts,
+  fetchEvents,
+  fetchPromotions,
+  deleteBusiness,
+  fetchProfileViewSeries,
+  fetchProfileViewPeriodComparison,
+  fetchTopLikedPostsForOwner,
+  isProfileViewRange,
+  toUserFacingError,
+  type ProfileViewRange,
+  type ProfileViewPoint,
+  type TopLikedPostSummary,
+} from "@/lib/data/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Promotion, PromotionForm } from '@/components/business/Promotion';
 import { Business, Review, Product, BusinessEvent, BusinessPromotion } from "@/lib/interfaces";
 import AddProduct from "@/components/business/AddProduct";
@@ -44,6 +64,94 @@ const Dashboard = () => {
     favorites: 0,
     avgRating: 0,
   });
+  const [viewRange, setViewRange] = useState<ProfileViewRange>("month");
+  const [viewSeries, setViewSeries] = useState<ProfileViewPoint[]>([]);
+  const [viewSeriesLoading, setViewSeriesLoading] = useState(false);
+  const [viewSeriesError, setViewSeriesError] = useState<string | null>(null);
+  const [viewTrend, setViewTrend] = useState<{ recent: number; previous: number } | null>(null);
+  const [topLikedPosts, setTopLikedPosts] = useState<TopLikedPostSummary[]>([]);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
+
+  const popularProducts = useMemo(() => {
+    return [...products].sort((a, b) => b.user_views - a.user_views).slice(0, 5);
+  }, [products]);
+
+  const insightCards = useMemo(() => {
+    type Insight = { title: string; body: string; icon: LucideIcon };
+    const cards: Insight[] = [];
+
+    if (viewTrend) {
+      const { recent, previous } = viewTrend;
+      if (recent === 0 && previous === 0) {
+        cards.push({
+          title: "Profile traffic",
+          body: "Share your public profile link so you can track visits and trends here.",
+          icon: Eye,
+        });
+      } else if (previous > 0) {
+        const pct = Math.round(((recent - previous) / previous) * 100);
+        const up = recent >= previous;
+        cards.push({
+          title: "30-day momentum",
+          body: up
+            ? `Profile views are up ${pct}% vs the prior 30 days (${recent.toLocaleString()} vs ${previous.toLocaleString()}).`
+            : `Profile views are down ${Math.abs(pct)}% vs the prior 30 days (${recent.toLocaleString()} vs ${previous.toLocaleString()}).`,
+          icon: up ? TrendingUp : TrendingDown,
+        });
+      } else {
+        cards.push({
+          title: "30-day views",
+          body: `Your profile was viewed ${recent.toLocaleString()} times in the last 30 days.`,
+          icon: Eye,
+        });
+      }
+    }
+
+    const top = popularProducts[0];
+    if (top && top.user_views > 0) {
+      cards.push({
+        title: "Popular offering",
+        body: `"${top.name}" leads your catalog with ${top.user_views.toLocaleString()} product views.`,
+        icon: BarChart3,
+      });
+    } else if (products.length > 0) {
+      cards.push({
+        title: "Catalog visibility",
+        body: "When shoppers open your products, your most-viewed items will rank here.",
+        icon: Store,
+      });
+    }
+
+    const bestPost = topLikedPosts[0];
+    if (bestPost && bestPost.likeCount > 0) {
+      cards.push({
+        title: "Community engagement",
+        body: `Your most-liked post has ${bestPost.likeCount.toLocaleString()} likes.`,
+        icon: Heart,
+      });
+    } else {
+      cards.push({
+        title: "Community",
+        body: "Post updates on Community so your audience can engage and like your content.",
+        icon: MessageCircle,
+      });
+    }
+
+    if (reviews.length > 0 && stats.avgRating >= 4) {
+      cards.push({
+        title: "Customer sentiment",
+        body: `Strong average rating of ${stats.avgRating.toFixed(1)} across ${reviews.length} review${reviews.length === 1 ? "" : "s"}.`,
+        icon: Star,
+      });
+    }
+
+    return cards.slice(0, 4);
+  }, [viewTrend, popularProducts, products.length, topLikedPosts, reviews.length, stats.avgRating]);
+
+  const viewsChartConfig = {
+    views: { label: "Views", color: "hsl(var(--primary))" },
+  } satisfies ChartConfig;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -83,43 +191,43 @@ const Dashboard = () => {
   };
 
   const getProducts = async () => {
-    // Fetch products
-    const productsData = await fetchProducts(business.id);
-    setProducts(productsData || []);
-  }
+    if (!business?.id) return;
+    try {
+      const productsData = await fetchProducts(business.id);
+      setProducts(productsData || []);
+    } catch (e) {
+      console.error("Error refreshing products:", e);
+    }
+  };
 
   const loadBusinessData = async () => {
     if (!user) return;
 
     setLoadingBusiness(true);
+    setDashboardLoadError(null);
+    setInsightsError(null);
     try {
-      // Fetch business
       const businessData = await fetchBusiness({ owner_id: user.id });
       if (businessData && businessData.length > 0) {
         setbusiness(businessData[0]);
 
-        // Fetch reviews
         const reviewsData = await fetchReview({ business_id: businessData[0].id });
         setReviews(reviewsData || []);
 
-        // Fetch products
         const productsData = await fetchProducts(businessData[0].id);
         setProducts(productsData || []);
 
-        // Fetch events
         const eventsData = await fetchEvents(businessData[0].id);
         setEvents(eventsData || []);
 
-        //Fetch Promotions
         const promotionData = await fetchPromotions(businessData[0].id);
         setPromotions(promotionData || []);
 
-        // Calculate average rating
-        const avgRating = reviewsData && reviewsData.length > 0
-          ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
-          : 0;
+        const avgRating =
+          reviewsData && reviewsData.length > 0
+            ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
+            : 0;
 
-        // Count messages (placeholder - would need a messages table)
         const messagesCount = 0;
 
         setStats({
@@ -128,43 +236,81 @@ const Dashboard = () => {
           favorites: businessData[0].users_favorited || 0,
           avgRating: Math.round(avgRating * 10) / 10,
         });
+
+        const [trendResult, likedResult] = await Promise.all([
+          fetchProfileViewPeriodComparison(businessData[0].id),
+          fetchTopLikedPostsForOwner(businessData[0].owner_id),
+        ]);
+
+        const insightMessages: string[] = [];
+        if (trendResult.ok) {
+          setViewTrend(trendResult.data);
+        } else {
+          setViewTrend(null);
+          insightMessages.push(trendResult.error);
+        }
+
+        if (likedResult.ok) {
+          setTopLikedPosts(likedResult.data);
+        } else {
+          setTopLikedPosts([]);
+          insightMessages.push(likedResult.error);
+        }
+
+        setInsightsError(insightMessages.length > 0 ? insightMessages.join(" ") : null);
       }
     } catch (error) {
       console.error("Error loading business data:", error);
+      setDashboardLoadError(toUserFacingError(error));
     } finally {
       setLoadingBusiness(false);
     }
   };
+
+  useLayoutEffect(() => {
+    if (!business?.id) return;
+    setViewSeriesLoading(true);
+  }, [business?.id, viewRange]);
+
+  useEffect(() => {
+    if (!business?.id) {
+      setViewSeries([]);
+      setViewSeriesError(null);
+      setViewSeriesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await fetchProfileViewSeries(business.id, viewRange);
+        if (cancelled) return;
+        if (result.ok) {
+          setViewSeries(result.data);
+          setViewSeriesError(null);
+        } else {
+          setViewSeries([]);
+          setViewSeriesError(result.error);
+        }
+      } catch (e) {
+        console.error("Error loading view series:", e);
+        if (!cancelled) {
+          setViewSeries([]);
+          setViewSeriesError(toUserFacingError(e));
+        }
+      } finally {
+        if (!cancelled) setViewSeriesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [business?.id, viewRange]);
 
   const statsData = [
     { label: "Total Views", value: stats.views.toLocaleString(), change: "", icon: Eye },
     { label: "Messages", value: stats.messages.toString(), change: "", icon: MessageCircle },
     { label: "Favorites", value: stats.favorites.toString(), change: "", icon: Heart },
     { label: "Avg Rating", value: stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A", change: "", icon: Star }
-  ];
-
-  const aiInsights = [
-    {
-      title: "Peak Activity Hours",
-      description: "Your customers are most active between 2PM-6PM on weekdays",
-      action: "Schedule posts during peak hours",
-      icon: Clock,
-      color: "text-primary"
-    },
-    {
-      title: "Popular Services",
-      description: "Box braids get 40% more inquiries than other services",
-      action: "Consider highlighting this service",
-      icon: TrendingUp,
-      color: "text-secondary"
-    },
-    {
-      title: "Customer Feedback",
-      description: "95% of customers mention 'professional' and 'friendly'",
-      action: "Keep up the great service!",
-      icon: Lightbulb,
-      color: "text-accent"
-    }
   ];
 
   if (loading || loadingBusiness) {
@@ -221,6 +367,14 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {dashboardLoadError && (
+          <Alert variant="destructive" className="mb-6" role="alert">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Could not load dashboard</AlertTitle>
+            <AlertDescription>{dashboardLoadError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statsData.map((stat, index) => (
@@ -241,29 +395,184 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* AI Insights */}
-        <Card className="mb-8 bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <CardTitle>AI-Powered Insights</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {aiInsights.map((insight, index) => (
-                <div key={index} className="bg-card rounded-lg p-4 border border-border">
-                  <insight.icon className={`h-6 w-6 mb-3 ${insight.color}`} />
-                  <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                  <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
-                  <Button variant="link" className="p-0 h-auto text-primary">
-                    {insight.action} →
-                  </Button>
+        {/* Storefront insights: views, signals, popular items, top posts */}
+        <div className="mb-8 space-y-6">
+          <Card className="border-primary/15 bg-gradient-to-br from-primary/5 to-secondary/5">
+            <CardHeader className="pb-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle>Storefront insights</CardTitle>
+                    <CardDescription>
+                      Data from your public profile, catalog, and community posts
+                    </CardDescription>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <p className="text-sm font-medium text-foreground">Profile views</p>
+                  <Tabs
+                    value={viewRange}
+                    onValueChange={(v) => {
+                      if (isProfileViewRange(v)) setViewRange(v);
+                    }}
+                    className="w-auto"
+                  >
+                    <TabsList className="h-9">
+                      <TabsTrigger value="month" className="text-xs sm:text-sm">
+                        Last month
+                      </TabsTrigger>
+                      <TabsTrigger value="6months" className="text-xs sm:text-sm">
+                        6 months
+                      </TabsTrigger>
+                      <TabsTrigger value="year" className="text-xs sm:text-sm">
+                        Last year
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                {viewSeriesError && (
+                  <Alert variant="destructive" className="mb-3">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Chart unavailable</AlertTitle>
+                    <AlertDescription>{viewSeriesError}</AlertDescription>
+                  </Alert>
+                )}
+                {viewSeriesLoading ? (
+                  <div className="h-[280px] flex items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground text-sm">
+                    Loading chart…
+                  </div>
+                ) : viewSeriesError ? (
+                  <div className="h-[280px] flex items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground text-sm text-center px-4">
+                    Fix the issue above or try again later.
+                  </div>
+                ) : viewSeries.length === 0 ? (
+                  <div className="h-[280px] flex items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground text-sm text-center px-4">
+                    No view data in this range yet. Views are recorded when visitors open your public profile.
+                  </div>
+                ) : (
+                  <ChartContainer config={viewsChartConfig} className="h-[280px] w-full aspect-auto">
+                    <AreaChart data={viewSeries} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        interval="preserveStartEnd"
+                        minTickGap={16}
+                      />
+                      <YAxis tickLine={false} axisLine={false} width={36} allowDecimals={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area
+                        dataKey="views"
+                        type="monotone"
+                        fill="var(--color-views)"
+                        stroke="var(--color-views)"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Total profile views (all time): {stats.views.toLocaleString()}
+                </p>
+              </div>
+
+              {insightsError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Some insight data could not be loaded</AlertTitle>
+                  <AlertDescription>{insightsError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {insightCards.map((insight, index) => (
+                  <div
+                    key={`${insight.title}-${index}`}
+                    className="flex gap-3 rounded-lg border border-border bg-card/80 p-4"
+                  >
+                    <insight.icon className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm mb-1">{insight.title}</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{insight.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h4 className="font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <Store className="h-4 w-4 text-muted-foreground" />
+                    Most popular items
+                  </h4>
+                  <p className="text-xs text-muted-foreground mb-3">Ranked by product profile views</p>
+                  {popularProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Add products or services to see what resonates.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {popularProducts.map((p, i) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 text-sm border-b border-border/60 last:border-0 pb-2 last:pb-0"
+                        >
+                          <span className="truncate">
+                            <span className="text-muted-foreground mr-2">{i + 1}.</span>
+                            {p.name}
+                          </span>
+                          <span className="text-muted-foreground shrink-0 tabular-nums">
+                            {p.user_views.toLocaleString()} views
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h4 className="font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-muted-foreground" />
+                    Most liked posts
+                  </h4>
+                  <p className="text-xs text-muted-foreground mb-3">From your Community posts</p>
+                  {topLikedPosts.filter((post) => post.likeCount > 0).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No likes yet — share an update from Quick Actions to build engagement.
+                    </p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {topLikedPosts
+                        .filter((post) => post.likeCount > 0)
+                        .map((post) => (
+                          <li key={post.id} className="text-sm border-b border-border/60 last:border-0 pb-3 last:pb-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="text-muted-foreground text-xs">
+                                {new Date(post.created_at).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums text-xs">
+                                {post.likeCount.toLocaleString()} likes
+                              </span>
+                            </div>
+                            <p className="text-foreground line-clamp-3">{post.content}</p>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}

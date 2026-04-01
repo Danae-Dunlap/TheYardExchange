@@ -3,6 +3,14 @@ import { deterministicRecommendIdsWithContext } from "@/lib/ai/aiFallback";
 import { parseRecommendEdgeResponse } from "@/lib/ai/aiService";
 import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessPromotion, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
 import type { Json } from "@/integrations/supabase/types";
+import type {
+    ProfileViewRange,
+    ProfileViewPoint,
+    TopLikedPostSummary,
+    InsightsResult,
+    ViewPeriodComparison,
+} from "@/lib/dashboard/storefrontInsights";
+import { errResult, okResult, toUserFacingError } from "@/lib/dashboard/storefrontInsights";
 
 /**
  * Fetch business data from the database.
@@ -849,3 +857,273 @@ export async function fetchPromotions(businessId: string): Promise<BusinessPromo
     return promotion;
 }
 
+function isViewEventRow(row: unknown): row is { viewed_at: string } {
+    return (
+        typeof row === "object" &&
+        row !== null &&
+        "viewed_at" in row &&
+        typeof (row as { viewed_at: unknown }).viewed_at === "string"
+    );
+}
+
+function isPostSummaryRow(row: unknown): row is { id: string; content: string; created_at: string } {
+    if (typeof row !== "object" || row === null) return false;
+    const r = row as Record<string, unknown>;
+    return (
+        typeof r.id === "string" &&
+        typeof r.content === "string" &&
+        typeof r.created_at === "string"
+    );
+}
+
+function isPostLikeRow(row: unknown): row is { post_id: string } {
+    return (
+        typeof row === "object" &&
+        row !== null &&
+        "post_id" in row &&
+        typeof (row as { post_id: unknown }).post_id === "string"
+    );
+}
+
+function formatLocalDateKey(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function startOfWeekMonday(d: Date): Date {
+    const x = new Date(d);
+    const day = x.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    x.setDate(x.getDate() + diff);
+    x.setHours(0, 0, 0, 0);
+    return x;
+}
+
+type BucketDef = { key: string; label: string };
+
+function buildViewBuckets(range: ProfileViewRange): BucketDef[] {
+    const now = new Date();
+    const buckets: BucketDef[] = [];
+    if (range === 'month') {
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            d.setHours(0, 0, 0, 0);
+            buckets.push({
+                key: formatLocalDateKey(d),
+                label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+            });
+        }
+    } else if (range === '6months') {
+        const thisWeekStart = startOfWeekMonday(now);
+        for (let i = 25; i >= 0; i--) {
+            const ws = new Date(thisWeekStart);
+            ws.setDate(ws.getDate() - i * 7);
+            buckets.push({
+                key: formatLocalDateKey(ws),
+                label: ws.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+            });
+        }
+    } else {
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            buckets.push({
+                key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+                label: d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
+            });
+        }
+    }
+    return buckets;
+}
+
+function bucketKeyForViewEvent(viewedAt: string, range: ProfileViewRange): string {
+    const d = new Date(viewedAt);
+    if (range === 'month') {
+        return formatLocalDateKey(d);
+    }
+    if (range === '6months') {
+        return formatLocalDateKey(startOfWeekMonday(d));
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function rangeStartDate(range: ProfileViewRange): Date {
+    const now = new Date();
+    const start = new Date(now);
+    if (range === 'month') {
+        start.setDate(start.getDate() - 29);
+    } else if (range === '6months') {
+        start.setMonth(start.getMonth() - 6);
+    } else {
+        start.setFullYear(start.getFullYear() - 1);
+    }
+    start.setHours(0, 0, 0, 0);
+    return start;
+}
+
+/**
+ * Profile views over time for the business dashboard chart (owner-only read via RLS).
+ */
+export async function fetchProfileViewSeries(
+    businessId: string,
+    range: ProfileViewRange,
+): Promise<InsightsResult<ProfileViewPoint[]>> {
+    if (!businessId.trim()) {
+        return errResult("Missing business identifier.");
+    }
+
+    try {
+        const buckets = buildViewBuckets(range);
+        const keySet = new Set(buckets.map((b) => b.key));
+        const counts = new Map<string, number>();
+        for (const b of buckets) {
+            counts.set(b.key, 0);
+        }
+
+        const start = rangeStartDate(range);
+        const { data, error } = await supabase
+            .from("business_profile_view_events")
+            .select("viewed_at")
+            .eq("business_id", businessId)
+            .gte("viewed_at", start.toISOString());
+
+        if (error) {
+            return errResult(`Could not load profile views: ${error.message}`);
+        }
+
+        for (const row of data ?? []) {
+            if (!isViewEventRow(row)) continue;
+            const k = bucketKeyForViewEvent(row.viewed_at, range);
+            if (keySet.has(k)) {
+                counts.set(k, (counts.get(k) || 0) + 1);
+            }
+        }
+
+        const series: ProfileViewPoint[] = buckets.map((b) => ({
+            label: b.label,
+            views: counts.get(b.key) || 0,
+        }));
+        return okResult(series);
+    } catch (e) {
+        return errResult(toUserFacingError(e));
+    }
+}
+
+/**
+ * Compares the last 30 days of profile views to the prior 30 days.
+ */
+export async function fetchProfileViewPeriodComparison(
+    businessId: string,
+): Promise<InsightsResult<ViewPeriodComparison>> {
+    if (!businessId.trim()) {
+        return errResult("Missing business identifier.");
+    }
+
+    try {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const sixtyDaysAgo = new Date(now);
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+        const { count: recent, error: e1 } = await supabase
+            .from("business_profile_view_events")
+            .select("*", { count: "exact", head: true })
+            .eq("business_id", businessId)
+            .gte("viewed_at", thirtyDaysAgo.toISOString());
+
+        const { count: previousWindow, error: e2 } = await supabase
+            .from("business_profile_view_events")
+            .select("*", { count: "exact", head: true })
+            .eq("business_id", businessId)
+            .gte("viewed_at", sixtyDaysAgo.toISOString())
+            .lt("viewed_at", thirtyDaysAgo.toISOString());
+
+        if (e1) {
+            return errResult(`Could not load recent profile views: ${e1.message}`);
+        }
+        if (e2) {
+            return errResult(`Could not load previous profile views: ${e2.message}`);
+        }
+
+        return okResult({ recent: recent ?? 0, previous: previousWindow ?? 0 });
+    } catch (e) {
+        return errResult(toUserFacingError(e));
+    }
+}
+
+/**
+ * Community posts for a user (business owner), ranked by like count.
+ */
+export async function fetchTopLikedPostsForOwner(
+    ownerUserId: string,
+    limit = 5,
+): Promise<InsightsResult<TopLikedPostSummary[]>> {
+    if (!ownerUserId.trim()) {
+        return errResult("Missing owner identifier.");
+    }
+    if (!Number.isFinite(limit) || limit < 1) {
+        return errResult("Invalid limit for top posts.");
+    }
+
+    try {
+        const { data: rawPosts, error: postsError } = await supabase
+            .from("posts")
+            .select("id, content, created_at")
+            .eq("user_id", ownerUserId)
+            .order("created_at", { ascending: false });
+
+        if (postsError) {
+            return errResult(`Could not load community posts: ${postsError.message}`);
+        }
+
+        const posts = (rawPosts ?? []).filter(isPostSummaryRow);
+        if (posts.length === 0) {
+            return okResult([]);
+        }
+
+        const postIds = posts.map((p) => p.id);
+        const { data: rawLikes, error: likesError } = await supabase
+            .from("post_likes")
+            .select("post_id")
+            .in("post_id", postIds);
+
+        if (likesError) {
+            return errResult(`Could not load post likes: ${likesError.message}`);
+        }
+
+        const likeCount = new Map<string, number>();
+        for (const id of postIds) {
+            likeCount.set(id, 0);
+        }
+        for (const row of rawLikes ?? []) {
+            if (!isPostLikeRow(row)) continue;
+            likeCount.set(row.post_id, (likeCount.get(row.post_id) || 0) + 1);
+        }
+
+        const ranked: TopLikedPostSummary[] = posts
+            .map((p) => ({
+                id: p.id,
+                content: p.content,
+                created_at: p.created_at,
+                likeCount: likeCount.get(p.id) || 0,
+            }))
+            .sort((a, b) => b.likeCount - a.likeCount)
+            .slice(0, limit);
+
+        return okResult(ranked);
+    } catch (e) {
+        return errResult(toUserFacingError(e));
+    }
+}
+
+export type {
+    ProfileViewRange,
+    ProfileViewPoint,
+    TopLikedPostSummary,
+    InsightsResult,
+    ViewPeriodComparison,
+} from "@/lib/dashboard/storefrontInsights";
+export { isProfileViewRange, toUserFacingError, PROFILE_VIEW_RANGES } from "@/lib/dashboard/storefrontInsights";

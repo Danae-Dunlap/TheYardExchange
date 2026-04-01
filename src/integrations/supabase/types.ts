@@ -74,6 +74,32 @@ export type Database = {
           },
         ]
       }
+      business_profile_view_events: {
+        Row: {
+          business_id: string
+          id: string
+          viewed_at: string
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          viewed_at?: string
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_profile_view_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           category: Database["public"]["Enums"]["business_category"]
@@ -516,6 +542,10 @@ export type Database = {
     Functions: {
       calculate_business_price_range: {
         Args: { business_id_input: string }
+        Returns: undefined
+      }
+      record_business_profile_view: {
+        Args: { p_business_id: string }
         Returns: undefined
       }
       find_business: {
