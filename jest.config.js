@@ -1,3 +1,7 @@
+// Provide Vite env vars for tests
+process.env.VITE_SUPABASE_URL = "https://test-project.supabase.co";
+process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "test-anon-key-12345";
+
 export default {
   transform: {
     "^.+\\.(ts|tsx)$": "babel-jest",
