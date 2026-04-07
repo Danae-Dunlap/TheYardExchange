@@ -12,10 +12,11 @@ import {
 import {
   TrendingUp, TrendingDown, MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent,   Sparkles,
+  BarChart3, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent, Sparkles,
   AlertCircle,
   type LucideIcon,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/contexts/AuthContext";
@@ -72,6 +73,58 @@ const Dashboard = () => {
   const [topLikedPosts, setTopLikedPosts] = useState<TopLikedPostSummary[]>([]);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
+
+  type ChatMessage = { id: number; sender: "customer" | "business"; content: string; timestamp: string };
+  type Conversation = { id: number; customerName: string; customerInitials: string; lastMessage: string; timestamp: string; unread: number; messages: ChatMessage[] };
+
+  const hardcodedConversations: Conversation[] = [
+    {
+      id: 1,
+      customerName: "Alex Rivera",
+      customerInitials: "AR",
+      lastMessage: "Thanks! I'll book for Saturday then.",
+      timestamp: "Today 2:47 PM",
+      unread: 2,
+      messages: [
+        { id: 1, sender: "customer", content: "Hey, do you have any availability this Saturday afternoon?", timestamp: "Today 1:15 PM" },
+        { id: 2, sender: "business", content: "Hi Alex! Yes, we have slots open at 2 PM and 4 PM on Saturday. Which would you prefer?", timestamp: "Today 1:32 PM" },
+        { id: 3, sender: "customer", content: "2 PM works perfectly for me. Is it for a regular cut and shape up?", timestamp: "Today 2:10 PM" },
+        { id: 4, sender: "business", content: "Absolutely, that's $35. I'll put you down for 2 PM Saturday. Just reply to confirm!", timestamp: "Today 2:30 PM" },
+        { id: 5, sender: "customer", content: "Thanks! I'll book for Saturday then.", timestamp: "Today 2:47 PM" },
+      ],
+    },
+    {
+      id: 2,
+      customerName: "Morgan Lee",
+      customerInitials: "ML",
+      lastMessage: "Can you do a full detail for under $80?",
+      timestamp: "Yesterday 4:22 PM",
+      unread: 1,
+      messages: [
+        { id: 1, sender: "customer", content: "Hi, I saw your listing for detailing services. Do you offer a full interior + exterior package?", timestamp: "Yesterday 3:05 PM" },
+        { id: 2, sender: "business", content: "Hey Morgan! Yes we do. Full detail (interior vacuum, wipe-down, exterior hand wash + wax) is $95.", timestamp: "Yesterday 3:40 PM" },
+        { id: 3, sender: "customer", content: "That's a bit over my budget. Can you do a full detail for under $80?", timestamp: "Yesterday 4:22 PM" },
+      ],
+    },
+    {
+      id: 3,
+      customerName: "Jordan Kim",
+      customerInitials: "JK",
+      lastMessage: "Got it, I'll swing by tomorrow morning.",
+      timestamp: "Mon 11:08 AM",
+      unread: 0,
+      messages: [
+        { id: 1, sender: "customer", content: "Is the vintage leather jacket listed in your shop still available?", timestamp: "Mon 9:14 AM" },
+        { id: 2, sender: "business", content: "Yes it is! Size medium, great condition. Want to come check it out in person?", timestamp: "Mon 9:45 AM" },
+        { id: 3, sender: "customer", content: "Definitely. What are your hours tomorrow?", timestamp: "Mon 10:30 AM" },
+        { id: 4, sender: "business", content: "We open at 9 AM and close at 6 PM. Ask for Marcus at the front.", timestamp: "Mon 10:55 AM" },
+        { id: 5, sender: "customer", content: "Got it, I'll swing by tomorrow morning.", timestamp: "Mon 11:08 AM" },
+      ],
+    },
+  ];
+
+  const [selectedConvId, setSelectedConvId] = useState<number>(1);
+  const selectedConv = hardcodedConversations.find((c) => c.id === selectedConvId)!;
 
   const popularProducts = useMemo(() => {
     return [...products].sort((a, b) => b.user_views - a.user_views).slice(0, 5);
@@ -228,7 +281,7 @@ const Dashboard = () => {
             ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
             : 0;
 
-        const messagesCount = 0;
+        const messagesCount = hardcodedConversations.length;
 
         setStats({
           views: businessData[0].user_views || 0,
@@ -247,14 +300,14 @@ const Dashboard = () => {
           setViewTrend(trendResult.data);
         } else {
           setViewTrend(null);
-          insightMessages.push(trendResult.error);
+          insightMessages.push((trendResult as { ok: false; error: string }).error);
         }
 
         if (likedResult.ok) {
           setTopLikedPosts(likedResult.data);
         } else {
           setTopLikedPosts([]);
-          insightMessages.push(likedResult.error);
+          insightMessages.push((likedResult as { ok: false; error: string }).error);
         }
 
         setInsightsError(insightMessages.length > 0 ? insightMessages.join(" ") : null);
@@ -289,7 +342,7 @@ const Dashboard = () => {
           setViewSeriesError(null);
         } else {
           setViewSeries([]);
-          setViewSeriesError(result.error);
+          setViewSeriesError((result as { ok: false; error: string }).error);
         }
       } catch (e) {
         console.error("Error loading view series:", e);
@@ -588,23 +641,58 @@ const Dashboard = () => {
               <TabsContent value="messages">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Messages</CardTitle>
+                    <CardTitle>Messages</CardTitle>
+                    <CardDescription>Conversations with your customers</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {stats.messages === 0 ? (
-                        <div className="text-center py-8">
-                          <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">No messages yet</p>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Messages from customers will appear here
-                          </p>
+                  <CardContent className="p-0">
+                    <div className="flex h-[500px]">
+                      {/* Conversation list */}
+                      <div className="w-1/3 border-r overflow-y-auto">
+                        {hardcodedConversations.map((conv) => (
+                          <button
+                            key={conv.id}
+                            onClick={() => setSelectedConvId(conv.id)}
+                            className={`w-full text-left px-4 py-3 border-b hover:bg-muted/50 transition-colors ${selectedConvId === conv.id ? "bg-muted" : ""}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9 shrink-0">
+                                <AvatarFallback className="text-xs">{conv.customerInitials}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium truncate">{conv.customerName}</span>
+                                  {conv.unread > 0 && (
+                                    <Badge className="ml-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs shrink-0">
+                                      {conv.unread}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{conv.lastMessage}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{conv.timestamp}</p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {/* Message thread */}
+                      <div className="flex-1 flex flex-col">
+                        <div className="flex items-center gap-3 px-4 py-3 border-b">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs">{selectedConv.customerInitials}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium text-sm">{selectedConv.customerName}</span>
                         </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground">Messages feature coming soon</p>
+                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                          {selectedConv.messages.map((msg) => (
+                            <div key={msg.id} className={`flex ${msg.sender === "business" ? "justify-end" : "justify-start"}`}>
+                              <div className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${msg.sender === "business" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <p>{msg.content}</p>
+                                <p className={`text-xs mt-1 ${msg.sender === "business" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{msg.timestamp}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
