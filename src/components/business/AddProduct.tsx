@@ -39,7 +39,7 @@ const productSchema = z.object({
   }, "Invalid file type. Must be PNG or JPEG.").optional(),
 });
 
-const AddProduct = ({ businessId, open, productInfo, isEdit, onOpenChange, onSuccess }: AddProductProps) => {
+const AddProduct = ({ businessId, open, productInfo, isEdit = false, onOpenChange, onSuccess }: AddProductProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: productInfo?.name || "",
@@ -71,7 +71,7 @@ const AddProduct = ({ businessId, open, productInfo, isEdit, onOpenChange, onSuc
       const productId = crypto.randomUUID(); 
 
       const product: ProductType = {
-        id: isEdit === false ? productId : productInfo?.id,
+        id: isEdit ? (productInfo?.id ?? productId) : productId,
         name: validated.name,
         business_id: businessId,
         description: validated.description || null,
@@ -79,10 +79,10 @@ const AddProduct = ({ businessId, open, productInfo, isEdit, onOpenChange, onSuc
         duration: validated.duration || null,
         tags: validated.tags || null,
         is_service: validated.is_service,
-        image: isEdit === false && validated.image ? validated.image.name : productInfo.image,
-        user_views: isEdit === false ? 0 : productInfo?.user_views,
-        is_fav: isEdit === false ? false : productInfo?.is_fav,
-        user_favorited: isEdit === false ? 0: productInfo?.user_favorited
+        image: !isEdit && validated.image ? validated.image.name : (productInfo?.image ?? null),
+        user_views: isEdit ? (productInfo?.user_views ?? 0) : 0,
+        is_fav: isEdit ? (productInfo?.is_fav ?? false) : false,
+        user_favorited: isEdit ? (productInfo?.user_favorited ?? 0) : 0
       };
 
       if(isEdit){
