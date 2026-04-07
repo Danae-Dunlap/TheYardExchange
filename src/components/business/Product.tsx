@@ -192,30 +192,6 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
                   {product.description}
                 </div>
               </div>
-
-
-              <div className="mt-6 space-y-2 text-sm">
-                {product.duration && (
-                  <p><strong>Duration:</strong> {product.duration}</p>
-                )}
-
-                {product.tags?.length ? (
-                  <p><strong>Tags:</strong> {product.tags}</p>
-                ) : null}
-              </div>
-
-              {/* REVIEWS PLACEHOLDER */}
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-2">Reviews</h3>
-                <ReviewList
-                  businessId={product.business_id}
-                  productId={product.id}
-                  currentUserId={user.id}
-                  onReviewChange={updateProductRating}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
         </DialogContent>
       </Dialog>
 

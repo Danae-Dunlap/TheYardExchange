@@ -28,6 +28,7 @@ interface ReviewListProps {
   businessId: string;
   productId?: string;
   currentUserId?: string;
+  isProduct?: boolean;
   onReviewChange?: () => void;
 }
 
@@ -46,7 +47,7 @@ function formatRelativeDate(dateString?: string): string {
   return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) !== 1 ? "s" : ""} ago`;
 }
 
-export function ReviewList({ businessId, productId, currentUserId, onReviewChange }: ReviewListProps) {
+export function ReviewList({ businessId, productId, currentUserId, onReviewChange, isProduct }: ReviewListProps) {
   const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
@@ -113,7 +114,7 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
     setReviewFormOpen(true);
   };
 
-  const handleDeleteClick = (review: ReviewWithProfile) =>{
+  const handleDeleteClick = (review: ReviewWithProfile) => {
     setReviewToDelete(review);
     setDeleteDialogOpen(true);
   };
@@ -135,13 +136,13 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className={!isProduct ? "flex flex-col gap-4" : "flex flex-row gap-2 overflow-x-scroll"}>
         {[1, 2, 3].map((i) => (
           <Card key={i}>
             <CardContent className="pt-4">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 flex flex-col gap-2">
+                <div className={!isProduct ? "flex flex-col gap-4" : "flex flex-row gap-2 overflow-x-scroll"}>
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-12 w-full" />
@@ -173,53 +174,56 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
           </CardContent>
         </Card>
       ) : (
-        reviews.map((review) => {
+        <div className={isProduct ? "flex flex-row gap-4 overflow-x-auto" : "flex flex-col gap-1"}>
+            
+        {reviews.map((review) => {
           const name = review.profile?.full_name || review.profile?.username || "Anonymous";
           const initials = name.slice(0, 2).toUpperCase();
           return (
-            <Card key={review.id}>
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10">
-                    {review.profile?.avatar_url && (
-                      <AvatarImage src={review.profile.avatar_url} alt={name} />
-                    )}
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-sm">{name}</span>
-                        <div className="flex items-center gap-2">
-                          <StarRating value={review.rating} size="sm" />
-                          {review.created_at && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatRelativeDate(review.created_at)}
-                            </span>
-                          )}
-                        </div>
+          <Card key={review.id} className={isProduct ? "w-80 flex-shrink-0" : ""}>
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Avatar className="h-10 w-10">
+                  {review.profile?.avatar_url && (
+                    <AvatarImage src={review.profile.avatar_url} alt={name} />
+                  )}
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-sm">{name}</span>
+                      <div className="flex items-center gap-2">
+                        <StarRating value={review.rating} size="sm" />
+                        {review.created_at && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatRelativeDate(review.created_at)}
+                          </span>
+                        )}
                       </div>
-                      {currentUserId === review.user_id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteClick(review)}
-                          aria-label="Delete review"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
-                    {review.comment && (
-                      <p className="text-sm mt-2 text-foreground">{review.comment}</p>
+                    {currentUserId === review.user_id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteClick(review)}
+                        aria-label="Delete review"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
+                  {review.comment && (
+                    <p className="text-sm mt-2 text-foreground">{review.comment}</p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
           );
-        })
+        })}
+        </div>
       )}
 
       {currentUserId && (
