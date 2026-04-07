@@ -136,7 +136,7 @@ export function ReviewList({ businessId, productId, currentUserId, onReviewChang
 
   if (loading) {
     return (
-      <div className={!isProduct ? "flex flex-col gap-4" : "flex flex-row gap-2 overflow-x-scroll"}>
+      <div className={!isProduct ? "flex flex-col gap-4" : "container flex flex-row gap-2 overflow-scroll"}>
         {[1, 2, 3].map((i) => (
           <Card key={i}>
             <CardContent className="pt-4">
