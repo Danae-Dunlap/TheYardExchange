@@ -183,12 +183,12 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
                   {product.image && (
                     <img
                       src={product.image}
-                      className="w-full h-full object-cover"
+                      className="w-1/2 h-auto object-cover"
                     />
                   )}
                 </div>
 
-                <div className="text-base text-muted-foreground leading-relaxed">
+                <div className="text-lg text-muted-foreground leading-relaxed">
                   {product.description}
                 </div>
               </div>
@@ -212,6 +212,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
                   productId={product.id}
                   currentUserId={user.id}
                   onReviewChange={updateProductRating}
+                  isProduct={true}
                 />
               </div>
             </DialogContent>

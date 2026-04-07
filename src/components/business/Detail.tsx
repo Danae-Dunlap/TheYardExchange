@@ -15,7 +15,7 @@ const DetailSection = ({ business, favorites, services, events, onReviewChange }
 
   return (
     <div className="lg:col-span-2">
-      <Tabs defaultValue="about" className="w-full">
+      <Tabs defaultValue="about" className="w-full"> 
         <TabsList className="w-full justify-start mb-6">
           <TabsTrigger value="about">About</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
