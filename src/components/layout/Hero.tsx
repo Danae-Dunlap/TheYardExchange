@@ -41,17 +41,17 @@ const HomeHeroSection = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search for businesses..."
-                            className="pl-10 h-12"
+                            className="pl-10 h-12 min-h-[44px]"
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         />
                     </div>
-                    <Button size="lg" className="h-12" onClick={() => handleSearch()}>Search</Button>
+                    <Button size="lg" className="h-12 min-h-[44px] min-w-[44px]" onClick={() => handleSearch()}>Search</Button>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible flex-nowrap md:flex-wrap scrollbar-hide pb-2">
                     {Object.values(Category).map((cat) => (
-                        <Badge key={cat} onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                        <Badge key={cat} onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground whitespace-nowrap shrink-0">
                             {cat}
                         </Badge>
                     ))}

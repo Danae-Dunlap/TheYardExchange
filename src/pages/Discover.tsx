@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,9 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 import { fetchBusiness } from "@/lib/data/utils";
 import { supabase } from "@/integrations/supabase/client";
 import Footer from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const Discover = () => {
   const { user, loading, profile } = useAuth();
@@ -25,7 +28,9 @@ const Discover = () => {
   const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({category: searchParams.get("category") || ""});
   const [sortingFilter, setSortingFilter] = useState<string | null>(null);
-  const [businesses, setBusinesses] = useState<Business[]>([])
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -109,7 +114,7 @@ const Discover = () => {
         {/* Search and Filters */}
         <div className="mb-4">
           <div className="flex flex-col md:flex-row gap-4 mb-4 items-end">
-            <div className="relative flex-1">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search businesses, services, products..."
@@ -121,73 +126,89 @@ const Discover = () => {
                 }}
               />
             </div>
-            <div className="flex flex-col gap-1 w-[180px]">
-              <Label className="text-sm ml-2">Category</Label>
-              <Select defaultValue={searchParams.get("category") || Category.Default}
-                onValueChange={(e) => {
-                  setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined });
-                  setSearchParams(prev => { prev.set("category", e != Category.Default ? e : Category.Default); return prev; });
-                }}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(Category).map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1 w-[180px]">
-              <Label className="text-sm ml-2">Sort By</Label>
-              <Select defaultValue={searchParams.get("sort_by") || SortingFilters.Highest_Rated}
-                onValueChange={(e) => {
-                  setSortingFilter(e);
-                  setSearchParams(prev => { prev.set("sort_by", e); return prev; });
-                }}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(SortingFilters).map((filter) => (
-                    <SelectItem key={filter} value={filter.toLowerCase()}>
-                      {filter}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex flex-col gap-1 w-[120px]">
-                <Label htmlFor="min-price" className="text-sm text-center"> Min Price </Label>
-                <Input
-                  type="number"
-                  id="min-price"
-                  defaultValue={searchParams.get('min_price') || null}
-                  onChange={(e) => {
-                    setSearchFilters({ ...searchFilters, min_price: e.target.value });
-                    setSearchParams(prev => { prev.set("min_price", e.target.value); return prev; });
-                  }}
-                />
-              </div>
-              <div className="flex flex-col gap-1 w-[120px]">
-                <Label htmlFor="max-price" className="text-sm text-center"> Max Price </Label>
-                <Input
-                  type="number"
-                  id="max-price"
-                  defaultValue={searchParams.get('max_price') || null}
-                  onChange={(e) => {
-                    setSearchFilters({ ...searchFilters, max_price: e.target.value });
-                    setSearchParams(prev => { prev.set("max_price", e.target.value); return prev; });
-                  }}
-                />
-              </div>
-            </div>
+            {isMobile && (
+              <Button
+                variant="outline"
+                className="w-full flex items-center gap-2"
+                onClick={() => setFiltersOpen(!filtersOpen)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+              </Button>
+            )}
           </div>
+
+          {/* Filters - always visible on desktop, collapsible on mobile */}
+          {(!isMobile || filtersOpen) && (
+            <div className="flex flex-col md:flex-row gap-4 mb-4 items-end">
+              <div className="flex flex-col gap-1 w-full md:w-[180px]">
+                <Label className="text-sm ml-2">Category</Label>
+                <Select defaultValue={searchParams.get("category") || Category.Default}
+                  onValueChange={(e) => {
+                    setSearchFilters({ ...searchFilters, category: e != Category.Default ? e : undefined });
+                    setSearchParams(prev => { prev.set("category", e != Category.Default ? e : Category.Default); return prev; });
+                  }}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(Category).map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1 w-full md:w-[180px]">
+                <Label className="text-sm ml-2">Sort By</Label>
+                <Select defaultValue={searchParams.get("sort_by") || SortingFilters.Highest_Rated}
+                  onValueChange={(e) => {
+                    setSortingFilter(e);
+                    setSearchParams(prev => { prev.set("sort_by", e); return prev; });
+                  }}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(SortingFilters).map((filter) => (
+                      <SelectItem key={filter} value={filter.toLowerCase()}>
+                        {filter}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 w-full md:w-auto">
+                <div className="flex flex-col gap-1 flex-1 md:w-[120px]">
+                  <Label htmlFor="min-price" className="text-sm text-center"> Min Price </Label>
+                  <Input
+                    type="number"
+                    id="min-price"
+                    defaultValue={searchParams.get('min_price') || undefined}
+                    onChange={(e) => {
+                      setSearchFilters({ ...searchFilters, min_price: e.target.value });
+                      setSearchParams(prev => { prev.set("min_price", e.target.value); return prev; });
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 flex-1 md:w-[120px]">
+                  <Label htmlFor="max-price" className="text-sm text-center"> Max Price </Label>
+                  <Input
+                    type="number"
+                    id="max-price"
+                    defaultValue={searchParams.get('max_price') || undefined}
+                    onChange={(e) => {
+                      setSearchFilters({ ...searchFilters, max_price: e.target.value });
+                      setSearchParams(prev => { prev.set("max_price", e.target.value); return prev; });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
