@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,9 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 import { fetchBusiness } from "@/lib/data/utils";
 import { supabase } from "@/integrations/supabase/client";
 import Footer from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const Discover = () => {
   const { user, loading, profile } = useAuth();
