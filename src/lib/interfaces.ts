@@ -70,6 +70,7 @@ export type Product = {
     price: number; 
     rating?: number;
     tags?: string;
+    category?: string;
     reviews?: string[];
     user_views: number;
     user_favorited: number;

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { deterministicRecommendIdsWithContext } from "@/lib/ai/aiFallback";
 import { parseRecommendEdgeResponse } from "@/lib/ai/aiService";
-import type {Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessPromotion, BusinessEvent, ContactInfo, BusinessHours} from "../interfaces";
+import type { Business, UserProfile, Product, Review, BusinessQuery, ReviewQuery, Category, BusinessPromotion, BusinessEvent, ContactInfo } from "../interfaces";
 import type { Json } from "@/integrations/supabase/types";
 import type {
     ProfileViewRange,
@@ -22,30 +22,31 @@ import { errResult, okResult, toUserFacingError } from "@/lib/dashboard/storefro
  * @returns A promise that resolves to an array of business data
  * @throws Error if the fetch operation fails.
  */
-export async function fetchBusiness(filters?: BusinessQuery, search_string?: string, is_featured?:boolean, owner_id?: string): Promise<Business[] | null> {
-    
+export async function fetchBusiness(filters?: BusinessQuery, search_string?: string, is_featured?: boolean, owner_id?: string): Promise<Business[] | null> {
+
     let query = supabase.from('businesses').select('*');
 
-    if(search_string){query = query.select().textSearch('find_business', search_string);}
-    if(is_featured !== undefined){query = query.eq('is_featured', is_featured);}
+    if (search_string) { query = query.select().textSearch('find_business', search_string); }
+    if (is_featured !== undefined) { query = query.eq('is_featured', is_featured); }
 
     //Apply filters based on query parameters
-    if(filters){
-        if (filters.owner_id) {query = query.eq('owner_id', filters.owner_id);}
-        if (filters.category) { query = query.eq('category', filters.category as Category);}
-        if(filters.business_id){query = query.in('id', filters.business_id);
+    if (filters) {
+        if (filters.owner_id) { query = query.eq('owner_id', filters.owner_id); }
+        if (filters.category) { query = query.eq('category', filters.category as Category); }
+        if (filters.business_id) {
+            query = query.in('id', filters.business_id);
         }
     }
 
-    if(owner_id){query = query.eq('owner_id', owner_id);}
+    if (owner_id) { query = query.eq('owner_id', owner_id); }
 
     // Only show hidden businesses to their owner; hide from all other queries
     if (!owner_id && !filters?.owner_id) {
         query = query.eq('is_hidden', false);
     }
-    const {data, error} = await query;
-    if (error) {throw new Error(`Error fetching businesses: ${error.message}`);}
-    if (!data) {return null;}
+    const { data, error } = await query;
+    if (error) { throw new Error(`Error fetching businesses: ${error.message}`); }
+    if (!data) { return null; }
 
     //Format data to match Business interface
     const businesses: Promise<Business[] | null> = Promise.all(data.map(async (business: any) => {
@@ -55,9 +56,9 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
             .select('full_name,username')
             .eq('id', business.owner_id)
             .single();
-        
+
         const ownerName = profile?.full_name || profile?.username || 'Unknown';
-        
+
         // Get logo URL if it exists
         let logoUrl = business.logo_url;
         if (logoUrl && !logoUrl.startsWith('http')) {
@@ -66,7 +67,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
                 .getPublicUrl(logoUrl);
             logoUrl = logoData?.publicUrl || logoUrl;
         }
-        
+
         return {
             id: business.id,
             name: business.name,
@@ -89,12 +90,12 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
     }));
 
     let result = await businesses;
-    
+
     // Client-side price filtering
     if (filters?.min_price || filters?.max_price) {
         const minPrice = filters.min_price ? parseFloat(filters.min_price) : 0;
         const maxPrice = filters.max_price ? parseFloat(filters.max_price) : Infinity;
-        
+
         result = result?.filter(business => {
             if (!business.price_range || business.price_range.length < 2) return true;
             return business.price_range[0] >= minPrice && business.price_range[1] <= maxPrice;
@@ -110,7 +111,7 @@ export async function fetchBusiness(filters?: BusinessQuery, search_string?: str
  * @param business business data
  */
 export async function insertBusiness(business: Business): Promise<void> {
-    
+
     // Handle logo upload if provided
     let logoUrl = null;
     if (business.logo_url) {
@@ -122,16 +123,16 @@ export async function insertBusiness(business: Business): Promise<void> {
             const fileName = `${business.id}/logo/${business.logo_url}`;
             logoUrl = fileName;
         }
-    }else{
+    } else {
         //Backup Photo URL
-        logoUrl = "https://trpkzqwrjbmxlqftrosn.supabase.co/storage/v1/object/public/businesses/default/default-business-photo.png"; 
+        logoUrl = "https://trpkzqwrjbmxlqftrosn.supabase.co/storage/v1/object/public/businesses/default/default-business-photo.png";
     }
 
-    const {error} = await supabase.from('businesses').insert({
+    const { error } = await supabase.from('businesses').insert({
         id: business.id,
-        name: business.name, 
+        name: business.name,
         owner_id: business.owner_id,
-        category: business.category as Category, 
+        category: business.category as Category,
         description: business.description || null,
         logo_url: logoUrl,
         contact_info: business.contact_info || null,
@@ -143,14 +144,14 @@ export async function insertBusiness(business: Business): Promise<void> {
         users_favorited: business.users_favorited || 0,
         most_popular_products: business.most_popular_products || null,
         location: business.location,
-    }); 
+    });
 
-    const {error: userError} = await supabase.from('profiles').update({
+    const { error: userError } = await supabase.from('profiles').update({
         business_id: business.id
     }).eq('id', business.owner_id);
 
-    if(error){throw new Error(`Error inserting business: ${error.message}`);}
-    if(userError){throw new Error(`Error updating profile: ${userError.message}`);}
+    if (error) { throw new Error(`Error inserting business: ${error.message}`); }
+    if (userError) { throw new Error(`Error updating profile: ${userError.message}`); }
 }
 
 /**
@@ -159,9 +160,9 @@ export async function insertBusiness(business: Business): Promise<void> {
  * @param business business data
  */
 export async function updateBusiness(business: Business): Promise<void> {
-    const {error} = await supabase.from('businesses').update({
-        name: business.name, 
-        category: business.category, 
+    const { error } = await supabase.from('businesses').update({
+        name: business.name,
+        category: business.category,
         description: business.description || null,
         logo_url: business.logo_url || null,
         deal: business.deal || null,
@@ -174,9 +175,9 @@ export async function updateBusiness(business: Business): Promise<void> {
         users_favorited: business.users_favorited || 0
     }).eq('id', business.id);
 
-    if(error){throw new Error(`Error updating business: ${error.message}`);}
+    if (error) { throw new Error(`Error updating business: ${error.message}`); }
 }
-  
+
 
 /**
  * Delete a business from the database. All related rows are deleted automatically through cascade delete.
@@ -184,17 +185,17 @@ export async function updateBusiness(business: Business): Promise<void> {
  * @param businessId 
  */
 export async function deleteBusiness(businessId: string, user_id: string): Promise<void> {
-    const {error: businessError} = await supabase.from('businesses').delete().eq('id', businessId);
-    const {error: userError} = await supabase.from('profiles').update({business_id: null}).eq('id', user_id);
-    const {error: roleError} = await supabase.from('user_roles').update({role: 'consumer'}).eq('user_id', user_id);
-    const {error: imageError} = await supabase.storage.from('businesses').remove([`${businessId}/logo/`]);
-    const {error: productImageError} = await supabase.storage.from('products').remove([`${businessId}/**`]);
+    const { error: businessError } = await supabase.from('businesses').delete().eq('id', businessId);
+    const { error: userError } = await supabase.from('profiles').update({ business_id: null }).eq('id', user_id);
+    const { error: roleError } = await supabase.from('user_roles').update({ role: 'consumer' }).eq('user_id', user_id);
+    const { error: imageError } = await supabase.storage.from('businesses').remove([`${businessId}/logo/`]);
+    const { error: productImageError } = await supabase.storage.from('products').remove([`${businessId}/**`]);
 
-    if(businessError){throw new Error(`Error deleting business: ${businessError.message}`);}
-    if(userError){throw new Error(`Error updating profile: ${userError.message}`);}
-    if(roleError){throw new Error(`Error deleting role: ${roleError.message}`);}
-    if(imageError){throw new Error(`Error deleting logo: ${imageError.message}`);}
-    if(productImageError){throw new Error(`Error deleting product images: ${productImageError.message}`);}
+    if (businessError) { throw new Error(`Error deleting business: ${businessError.message}`); }
+    if (userError) { throw new Error(`Error updating profile: ${userError.message}`); }
+    if (roleError) { throw new Error(`Error deleting role: ${roleError.message}`); }
+    if (imageError) { throw new Error(`Error deleting logo: ${imageError.message}`); }
+    if (productImageError) { throw new Error(`Error deleting product images: ${productImageError.message}`); }
 }
 
 /**
@@ -208,17 +209,17 @@ export async function deleteBusiness(businessId: string, user_id: string): Promi
 export async function fetchProducts(business_id?: string, is_fav?: boolean, product_id?: string[]): Promise<Product[] | null> {
     let query = supabase.from('products').select('*')
 
-    if(business_id) {query = query.eq('business_id', business_id);}
-    if(is_fav) {query = query.eq('is_favorite', is_fav);}
-    if(product_id && product_id.length > 0) {query = query.in('id', product_id);}
+    if (business_id) { query = query.eq('business_id', business_id); }
+    if (is_fav) { query = query.eq('is_favorite', is_fav); }
+    if (product_id && product_id.length > 0) { query = query.in('id', product_id); }
 
-    const {data, error} = await query;
-    if (error) {throw new Error(`Error fetching products: ${error.message}`);}
-    if(!data) {return null;}
+    const { data, error } = await query;
+    if (error) { throw new Error(`Error fetching products: ${error.message}`); }
+    if (!data) { return null; }
 
     //Format data to match Product interface
     const products: Promise<Product[] | null> = Promise.all(data.map(async (product: any) => {
-        return{
+        return {
             id: product.id,
             name: product.product_name,
             business_id: product.business_id,
@@ -231,6 +232,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
             is_fav: product.is_favorite,
             is_service: product.is_service,
             duration: product.duration,
+            category: product.category,
             reviews: product.reviews || null,
             user_views: Number(product.user_views),
             user_favorited: product.users_favorited,
@@ -249,7 +251,7 @@ export async function fetchProducts(business_id?: string, is_fav?: boolean, prod
  */
 export async function insertProduct(product: Product, imageFile?: File): Promise<void> {
     let imagePath: string = null;
-    
+
     // Upload image if provided
     if (imageFile) {
         const fileName = `${product.business_id}/${product.id}/image/${imageFile.name}`;
@@ -259,23 +261,23 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
                 cacheControl: '3600',
                 upsert: false,
             });
-        
+
         if (uploadError) {
             throw new Error(`Error uploading product image: ${uploadError.message}`);
         }
-        
+
         // Get public URL
         const { data: imageData } = await supabase.storage
             .from('products')
             .getPublicUrl(fileName);
-        
+
         imagePath = imageData?.publicUrl || fileName;
     } else if (product.image) {
         // If image is already a URL, use it
         imagePath = product.image;
     }
     const productTags = product.tags ? product.tags.split(", ").map((tag) => tag.trim()) : null
-    const {error} = await supabase.from('products').insert({
+    const { error } = await supabase.from('products').insert({
         id: product.id,
         product_name: product.name,
         business_id: product.business_id,
@@ -287,12 +289,12 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
         is_service: product.is_service || false,
         duration: product.duration || null,
         tags: productTags,
-        rating:0,
+        rating: 0,
         users_favorited: 0,
         category: productTags && productTags.length > 0 ? productTags[0] : null, // Use first tag as category if available
-    }); 
+    });
 
-    if(error){throw new Error(`Error inserting product: ${error.message}`);}
+    if (error) { throw new Error(`Error inserting product: ${error.message}`); }
 
     // Recalculate price range from all products to ensure accuracy
     await recalculatePriceRange(product.business_id);
@@ -306,11 +308,11 @@ export async function insertProduct(product: Product, imageFile?: File): Promise
  */
 export async function updateProduct(product: Product, imageFile?: File): Promise<void> {
     let imagePath: string = null;
-    
+
     //Delete old image, if new image is provided
-    if(product.image && imageFile){
-        const {error: deleteImageError} = await supabase.storage.from('products').remove([`${product.image}`]);
-        if(deleteImageError){
+    if (product.image && imageFile) {
+        const { error: deleteImageError } = await supabase.storage.from('products').remove([`${product.image}`]);
+        if (deleteImageError) {
             throw new Error(`Error deleting old product image: ${deleteImageError.message}`);
         }
     }
@@ -324,38 +326,38 @@ export async function updateProduct(product: Product, imageFile?: File): Promise
                 cacheControl: '3600',
                 upsert: false,
             });
-        
+
         if (uploadError) {
             throw new Error(`Error uploading product image: ${uploadError.message}`);
         }
-        
+
         // Get public URL
         const { data: imageData } = await supabase.storage
             .from('products')
             .getPublicUrl(fileName);
-        
+
         imagePath = imageData?.publicUrl || fileName;
     } else if (product.image) {
         // If image is already a URL, use it
         imagePath = product.image;
-    }else{
+    } else {
         imagePath = null;
     }
 
-    const {error} = await supabase.from('products').update({
+    const { error } = await supabase.from('products').update({
         product_name: product.name,
         business_name: product.business_name,
         description: product.description || null,
         duration: product.duration || null,
         is_service: product.is_service,
-        images:  imagePath,
+        images: imagePath,
         price: product.price,
         user_views: product.user_views,
         tags: product.tags ? product.tags.split(", ").map((tag) => tag.trim()) : null,
-    }).eq('id', product.id); 
+    }).eq('id', product.id);
 
-    if(error){throw new Error(`Error updating product: ${error.message}`);}
-    
+    if (error) { throw new Error(`Error updating product: ${error.message}`); }
+
     // Recalculate price range from all products to ensure accuracy
     await recalculatePriceRange(product.business_id);
 }
@@ -380,15 +382,79 @@ export async function deleteProduct(productId: string): Promise<void> {
 
     const businessId = product?.business_id;
 
-    const {error: deleteImageError} = await supabase.storage.from('products').remove([`${businessId}/${productId}/*`]);
-    const {error} = await supabase.from('products').delete().eq('id', productId);
+    const { error: deleteImageError } = await supabase.storage.from('products').remove([`${businessId}/${productId}/*`]);
+    const { error } = await supabase.from('products').delete().eq('id', productId);
 
-    if(deleteImageError){throw new Error(`Error deleting product image: ${deleteImageError.message}`);}
-    if(error){throw new Error(`Error deleting product: ${error.message}`);}
+    if (deleteImageError) { throw new Error(`Error deleting product image: ${deleteImageError.message}`); }
+    if (error) { throw new Error(`Error deleting product: ${error.message}`); }
 
     // Recalculate price range from remaining products
     if (businessId) {
         await recalculatePriceRange(businessId);
+    }
+}
+
+export async function fetchSimilarProducts(product: Product): Promise<Product[]> {
+    const allProducts = await fetchProducts();
+    if (!allProducts || allProducts.length === 0) {
+        return [];
+    }
+
+    //Build product context
+    const productContext = {
+        product_name: product.name,
+        description: product.description,
+        category: product.category,
+        price: product.price,
+        tags: product.tags,
+    };
+
+    try {
+        const { data, error } = await supabase.functions.invoke("recommendProduct", {
+            body: { productContext, products: allProducts },
+        });
+        console.log("recommendProduct invoke result", { data, error });
+        if (error) {
+            console.warn(JSON.stringify({
+                tag: "[AI:client]",
+                event: "recommend_fallback",
+                invokeError: true,
+                invokeMessage: error.message,
+                invokeDetails: error.details,
+                data,
+            }));
+            return [];
+        }
+
+        if (data && typeof data === "object" && "error" in data) {
+            console.warn(JSON.stringify({
+                tag: "[AI:client]",
+                event: "recommend_edge_error_payload",
+                edgeError: (data as any).error,
+                data,
+            }));
+            return [];
+        }
+
+        const parsed = parseRecommendEdgeResponse(data);
+        const ids = parsed.recommendedIds;
+
+        if (parsed.fallback) {
+            console.warn(JSON.stringify({
+                tag: "[AI:client]",
+                event: "recommend_fallback",
+                edgeFallback: true,
+            }));
+        }
+
+        if (!ids || ids.length === 0) {
+            return [];
+        }
+
+        const recommended = await fetchProducts(null, null, ids);
+        return recommended || [];
+    } catch (e) {
+        throw new Error(`Error fetching similar products: ${e instanceof Error ? e.message : String(e)}`);
     }
 }
 
@@ -400,10 +466,10 @@ export async function deleteProduct(productId: string): Promise<void> {
  * @throws Error if the fetch operation fails.
  */
 export async function fetchProfile(user_id: string): Promise<UserProfile | null> {
-    const {data, error} = await supabase.from('profiles').select('*').eq('id', user_id);
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user_id);
 
-    if (error) {throw new Error(`Error fetching profile: ${error.message}`);}
-    if (!data || data.length === 0) {return null;}
+    if (error) { throw new Error(`Error fetching profile: ${error.message}`); }
+    if (!data || data.length === 0) { return null; }
 
     //Format data to match Profile interface
     const profiles = await Promise.all(data.map(async (profile: any) => {
@@ -421,7 +487,7 @@ export async function fetchProfile(user_id: string): Promise<UserProfile | null>
             interests: profile.user_interests || [],
         }
     }));
-    
+
     return profiles[0] || null;
 }
 
@@ -432,14 +498,14 @@ export async function fetchProfile(user_id: string): Promise<UserProfile | null>
  * @throws Error if the delete operation fails in any table.
  */
 export async function deleteProfile(profileId: string): Promise<void> {
-    const {error: profileError} = await supabase.from('profiles').delete().eq('id', profileId);
-    const {error: imageError} = await supabase.storage.from('account_images').remove([`${profileId}/avatar/`]);
+    const { error: profileError } = await supabase.from('profiles').delete().eq('id', profileId);
+    const { error: imageError } = await supabase.storage.from('account_images').remove([`${profileId}/avatar/`]);
 
-    if(profileError){throw new Error(`Error deleting profile: ${profileError?.message}`);}
-    if(imageError){throw new Error(`Error deleting profile image: ${imageError.message}`);}
+    if (profileError) { throw new Error(`Error deleting profile: ${profileError?.message}`); }
+    if (imageError) { throw new Error(`Error deleting profile image: ${imageError.message}`); }
 }
 
-        
+
 /**
  * Fetches review data from the database.
  *
@@ -455,11 +521,11 @@ export async function fetchReview(filters: ReviewQuery): Promise<Review[] | null
     if (filters.user_id) { query = query.eq('user_id', filters.user_id); }
     if (filters.business_id) { query = query.eq('business_id', filters.business_id); }
     if (filters.product_id) { query = query.eq('product_id', filters.product_id); }
-    query = query.order('created_at', {ascending: false}); // Order reviews by most recent first
+    query = query.order('created_at', { ascending: false }); // Order reviews by most recent first
 
-    const {data, error} = await query;
-    if (!data) {return null;}
-    if (error) {throw new Error(`Error fetching reviews: ${error.message}`);}
+    const { data, error } = await query;
+    if (!data) { return null; }
+    if (error) { throw new Error(`Error fetching reviews: ${error.message}`); }
 
     //Format data to match Review interface
     const reviews: Review[] = data.map((review: any) => {
@@ -479,16 +545,16 @@ export async function fetchReview(filters: ReviewQuery): Promise<Review[] | null
  * @throws Error if the insert operation fails. 
  */
 export async function insertReview(review: Review): Promise<void> {
-    const {error} = await supabase.from('reviews').insert({
-        id: review.id, 
+    const { error } = await supabase.from('reviews').insert({
+        id: review.id,
         user_id: review.user_id,
         business_id: review.business_id,
         product_id: review.product_id || null,
         rating: review.rating,
         comment: review.comment || null,
 
-    }); 
-    if(error){throw new Error(`Error inserting review: ${error.message}`);}
+    });
+    if (error) { throw new Error(`Error inserting review: ${error.message}`); }
 
     // Keep business-level rating in sync after every review write.
     await recalculateBusinessRating(review.business_id);
@@ -516,8 +582,8 @@ export async function deleteReview(reviewId: string, businessId?: string): Promi
         resolvedBusinessId = reviewData?.business_id;
     }
 
-    const {error} = await supabase.from('reviews').delete().eq('id', reviewId);
-    if(error){throw new Error(`Error deleting review: ${error.message}`);}
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+    if (error) { throw new Error(`Error deleting review: ${error.message}`); }
 
     if (resolvedBusinessId) {
         // Recompute average after delete so listing/detail ratings stay accurate.
@@ -603,23 +669,23 @@ export async function checkUserReviewExists(userId: string, businessId: string, 
     };
 }
 
- /**
- * Fetches a businesses' event from the database.
- * 
- * @param business_id used to find events
- * @returns a list of events tied to the business
- */
+/**
+* Fetches a businesses' event from the database.
+* 
+* @param business_id used to find events
+* @returns a list of events tied to the business
+*/
 export async function fetchEvents(business_id: string): Promise<BusinessEvent[] | null> {
-    const {data, error} = await supabase.from('events').select('*').eq('business_id', business_id);
-    if(error){throw new Error(`Error fetching events: ${error.message}`);}
-    
+    const { data, error } = await supabase.from('events').select('*').eq('business_id', business_id);
+    if (error) { throw new Error(`Error fetching events: ${error.message}`); }
+
     const events = data.map((event: any) => {
-        return{
+        return {
             id: event.id,
             business_id: event.business_id,
             business_name: event.business_name,
             title: event.title,
-            description: event.description, 
+            description: event.description,
             start_date: new Date(event.start_date),
             end_date: new Date(event.end_date),
         }
@@ -635,16 +701,16 @@ export async function fetchEvents(business_id: string): Promise<BusinessEvent[] 
  * @throws Error if the insert operation fails.
  */
 export async function insertEvent(event: BusinessEvent): Promise<void> {
-    const {error} = await supabase.from('events').insert({
+    const { error } = await supabase.from('events').insert({
         id: event.id,
         business_id: event.business_id,
-        business_name: event.business_name, 
+        business_name: event.business_name,
         title: event.title,
         description: event.description || null,
         start_date: event.start_date.toISOString(),
         end_date: event.end_date.toISOString(),
-    }); 
-    if(error){throw new Error(`Error inserting event: ${error.message}`);}
+    });
+    if (error) { throw new Error(`Error inserting event: ${error.message}`); }
 }
 
 /**
@@ -654,13 +720,13 @@ export async function insertEvent(event: BusinessEvent): Promise<void> {
  * @throws Error if the update operation fails.
  */
 export async function updateEvent(event: BusinessEvent): Promise<void> {
-    const {error} = await supabase.from('events').update({
+    const { error } = await supabase.from('events').update({
         title: event.title,
         description: event.description || null,
         start_date: event.start_date.toISOString(),
         end_date: event.end_date.toISOString(),
     }).eq('id', event.id);
-    if(error){throw new Error(`Error updating event: ${error.message}`);}
+    if (error) { throw new Error(`Error updating event: ${error.message}`); }
 }
 
 /**
@@ -670,8 +736,8 @@ export async function updateEvent(event: BusinessEvent): Promise<void> {
  * @throws Error if the delete operation fails.
  */
 export async function deleteEvent(eventId: string): Promise<void> {
-    const {error} = await supabase.from('events').delete().eq('id', eventId);
-    if(error){throw new Error(`Error deleting event: ${error.message}`);}
+    const { error } = await supabase.from('events').delete().eq('id', eventId);
+    if (error) { throw new Error(`Error deleting event: ${error.message}`); }
 }
 
 /**
@@ -830,7 +896,7 @@ export async function recalculateBusinessRating(businessId: string): Promise<num
  * @returns a list of promotion data
  */
 export async function fetchPromotions(businessId: string): Promise<BusinessPromotion[]> {
-    const now: Date = new Date(); 
+    const now: Date = new Date();
 
     const { data, error } = await supabase
         .from('promotions')
@@ -842,17 +908,17 @@ export async function fetchPromotions(businessId: string): Promise<BusinessPromo
         throw new Error(`Error fetching promotions: ${error.message}`);
     }
 
-    const promotion: Promise<BusinessPromotion[] | null> = Promise.all(data.map(async (promotion: any) => 
-   { 
-    return{
-        id: promotion.id,
-        business_id: promotion.business_id,
-        start_date: promotion.start_date,
-        end_date: promotion.end_date,
-        title: promotion.title,
-        is_upcoming: promotion.start_date >= now,
-        description: promotion.description,
-    }}));
+    const promotion: Promise<BusinessPromotion[] | null> = Promise.all(data.map(async (promotion: any) => {
+        return {
+            id: promotion.id,
+            business_id: promotion.business_id,
+            start_date: promotion.start_date,
+            end_date: promotion.end_date,
+            title: promotion.title,
+            is_upcoming: promotion.start_date >= now,
+            description: promotion.description,
+        }
+    }));
 
     return promotion;
 }

@@ -8,14 +8,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatHours } from "./Hours";
 import { ReviewList } from "@/components/layout/Reviews/review-list";
 import { priceRange } from "@/lib/utils";
+import { useSearchParams } from "react-router-dom";
 
 
 const DetailSection = ({ business, favorites, services, events, onReviewChange }) => {
   const { user} = useAuth();
+  const [searchParams] = useSearchParams(); 
 
   return (
     <div className="lg:col-span-2">
-      <Tabs defaultValue="about" className="w-full"> 
+      <Tabs defaultValue={searchParams.get("tab") || 'about'} className="w-full"> 
         <TabsList className="w-full justify-start mb-6">
           <TabsTrigger value="about">About</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
