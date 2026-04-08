@@ -49,9 +49,9 @@ const HomeHeroSection = () => {
                     <Button size="lg" className="h-12" onClick={() => handleSearch()}>Search</Button>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-2 md:flex-wrap overflow-x-auto md:overflow-visible flex-nowrap md:flex-wrap scrollbar-hide pb-2">
                     {Object.values(Category).map((cat) => (
-                        <Badge key={cat} onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground">
+                        <Badge key={cat} onClick={() => handleSearch(cat)} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground whitespace-nowrap shrink-0">
                             {cat}
                         </Badge>
                     ))}
