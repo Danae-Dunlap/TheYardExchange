@@ -281,6 +281,9 @@ export function indicesToRecommendedIds(
     seen.add(i);
     ids.push(businesses[i].id);
   }
+  if (indices.length === 0) {
+    return { ok: true, value: [] };
+  }
   if (ids.length === 0) {
     return {
       ok: false,

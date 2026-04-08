@@ -9,7 +9,7 @@ import Header from "@/components/layout/Header";
 import { HomeHeroSection } from "@/components/layout/Hero";
 import PostsSection from "@/components/layout/PostsSection";
 import FeaturedSection from "@/components/layout/Featured";
-import RecommendedSection from "@/components/layout/Recommended";
+import { RecommendedSection } from "@/components/layout/Recommended";
 import AIChatbot from "@/components/layout/AIChatbot";
 import Footer from "@/components/layout/Footer";
 

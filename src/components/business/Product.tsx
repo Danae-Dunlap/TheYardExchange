@@ -20,16 +20,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Product as ProductType, Review as ReviewType } from "@/lib/interfaces";
-import { deleteProduct, calculateAverageRating} from "@/lib/data/utils";
+import { Product as ProductType } from "@/lib/interfaces";
+import { deleteProduct, calculateAverageRating, fetchSimilarProducts} from "@/lib/data/utils";
 import { ReviewList } from "../layout/Reviews/review-list";
+import { RecommendedProducts } from "../layout/Recommended";
 import AddProduct from "./AddProduct";
 
-const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: () => void; }) => {
+const ProductCard = ({ product, onUpdate, disableButtons }: { product: ProductType; onUpdate?: () => void; disableButtons?: boolean }) => {
   const { profile, user, refreshProfileData } = useAuth();
   const [isFavorite, setIsFavorite] = useState(
     profile?.favorite_products?.includes(product.id) || false
   );
+  const [similarProducts, setSimilarProducts] = useState<ProductType[]>([]);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -78,6 +80,15 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
     updateFavorites();
   }, [isFavorite]);
 
+  useEffect(() => {
+    if(viewOpen == true){
+      const fetchSimilar = async () => {
+        const similar = await fetchSimilarProducts(product);
+        setSimilarProducts(similar);
+      };
+      fetchSimilar();
+    }
+  }, [viewOpen]);
 
   // Delete
   const handleDelete = async () => {
@@ -91,7 +102,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
     <>
       {/* CARD */}
       <div
-        onClick={() => setViewOpen(true)}
+        onClick={() => {if(!disableButtons) {setViewOpen(true);}}}
         className="relative flex gap-4 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition"
       >
         {/* IMAGE */}
@@ -127,7 +138,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
 
         {/* ACTIONS */}
         <div className="absolute top-2 right-2 flex gap-2">
-          {!isOwnProduct && (
+          {!isOwnProduct && !disableButtons && (
             <Button
               size="icon"
               variant="ghost"
@@ -143,7 +154,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
             </Button>
           )}
 
-          {isOwnProduct && (
+          {isOwnProduct && !disableButtons && (
             <>
               <Ellipsis
                 className="cursor-pointer size-4"
@@ -172,7 +183,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
         </VisuallyHidden>
         <DialogContent>
           <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <div className="flex items-start justify-between my-4">
                 <h2 className="text-2xl font-bold">{product.name}</h2>
                 <p className="text-lg font-semibold">${product.price}</p>
@@ -204,7 +215,7 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
                 ) : null}
               </div>
 
-              {/* REVIEWS PLACEHOLDER */}
+              {/* REVIEWS*/}
               <div className="mt-8">
                 <h3 className="text-lg font-semibold mb-2">Reviews</h3>
                 <ReviewList
@@ -215,6 +226,11 @@ const ProductCard = ({ product, onUpdate }: { product: ProductType; onUpdate?: (
                   isProduct={true}
                 />
               </div>
+
+              {/* Recommend Similar Products */}
+              {similarProducts.length > 0 && (
+                <RecommendedProducts recommendedProducts={similarProducts} onSuccess={() => setViewOpen(false)}/>
+              )}
             </DialogContent>
           </Dialog>
         </DialogContent>
