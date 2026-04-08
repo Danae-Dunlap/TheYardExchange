@@ -28,7 +28,9 @@ const Discover = () => {
   const [deferredSearchQuery, setDeferredSearchQuery] = useState(searchQuery);
   const [searchFilters, setSearchFilters] = useState<BusinessQuery>({category: searchParams.get("category") || ""});
   const [sortingFilter, setSortingFilter] = useState<string | null>(null);
-  const [businesses, setBusinesses] = useState<Business[]>([])
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   useEffect(() => {
