@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  TrendingUp, TrendingDown, MessageCircle,
+  MessageCircle,
   Eye, Heart, Star, Calendar, Settings,
-  BarChart3, Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent,   Sparkles,
+  Lightbulb, Store, Plus, Pencil, Trash2, BadgePercent, Sparkles,
   AlertCircle,
-  type LucideIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
@@ -26,13 +25,11 @@ import {
   fetchEvents,
   fetchPromotions,
   deleteBusiness,
-  fetchProfileViewSeries,
   fetchProfileViewPeriodComparison,
   fetchTopLikedPostsForOwner,
   isProfileViewRange,
   toUserFacingError,
   type ProfileViewRange,
-  type ProfileViewPoint,
   type TopLikedPostSummary,
 } from "@/lib/data/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -42,6 +39,14 @@ import AddProduct from "@/components/business/AddProduct";
 import { ProductCard } from "@/components/business/Product";
 import { AddEvent, EditEvent } from "@/components/business/Event";
 import Footer from "@/components/layout/Footer";
+import {
+  buildInsightCards,
+  buildStatsData,
+  getPopularProducts,
+  getTopLikedPostsWithLikes,
+  type DashboardStats,
+} from "@/lib/dashboard/insights";
+import { useProfileViewSeries } from "@/hooks/useProfileViewSeries";
 
 const Dashboard = () => {
   const { user, isBusinessOwner, loading, refreshProfileData, refreshRoles } = useAuth();
@@ -58,96 +63,27 @@ const Dashboard = () => {
   const [editEventOpen, setEditEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<BusinessEvent | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     views: 0,
     messages: 0,
     favorites: 0,
     avgRating: 0,
   });
   const [viewRange, setViewRange] = useState<ProfileViewRange>("month");
-  const [viewSeries, setViewSeries] = useState<ProfileViewPoint[]>([]);
-  const [viewSeriesLoading, setViewSeriesLoading] = useState(false);
-  const [viewSeriesError, setViewSeriesError] = useState<string | null>(null);
   const [viewTrend, setViewTrend] = useState<{ recent: number; previous: number } | null>(null);
   const [topLikedPosts, setTopLikedPosts] = useState<TopLikedPostSummary[]>([]);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
 
   const popularProducts = useMemo(() => {
-    return [...products].sort((a, b) => b.user_views - a.user_views).slice(0, 5);
+    return getPopularProducts(products);
   }, [products]);
 
   const insightCards = useMemo(() => {
-    type Insight = { title: string; body: string; icon: LucideIcon };
-    const cards: Insight[] = [];
+    return buildInsightCards({ viewTrend, popularProducts, products, topLikedPosts, reviews, stats });
+  }, [viewTrend, popularProducts, products, topLikedPosts, reviews, stats]);
 
-    if (viewTrend) {
-      const { recent, previous } = viewTrend;
-      if (recent === 0 && previous === 0) {
-        cards.push({
-          title: "Profile traffic",
-          body: "Share your public profile link so you can track visits and trends here.",
-          icon: Eye,
-        });
-      } else if (previous > 0) {
-        const pct = Math.round(((recent - previous) / previous) * 100);
-        const up = recent >= previous;
-        cards.push({
-          title: "30-day momentum",
-          body: up
-            ? `Profile views are up ${pct}% vs the prior 30 days (${recent.toLocaleString()} vs ${previous.toLocaleString()}).`
-            : `Profile views are down ${Math.abs(pct)}% vs the prior 30 days (${recent.toLocaleString()} vs ${previous.toLocaleString()}).`,
-          icon: up ? TrendingUp : TrendingDown,
-        });
-      } else {
-        cards.push({
-          title: "30-day views",
-          body: `Your profile was viewed ${recent.toLocaleString()} times in the last 30 days.`,
-          icon: Eye,
-        });
-      }
-    }
-
-    const top = popularProducts[0];
-    if (top && top.user_views > 0) {
-      cards.push({
-        title: "Popular offering",
-        body: `"${top.name}" leads your catalog with ${top.user_views.toLocaleString()} product views.`,
-        icon: BarChart3,
-      });
-    } else if (products.length > 0) {
-      cards.push({
-        title: "Catalog visibility",
-        body: "When shoppers open your products, your most-viewed items will rank here.",
-        icon: Store,
-      });
-    }
-
-    const bestPost = topLikedPosts[0];
-    if (bestPost && bestPost.likeCount > 0) {
-      cards.push({
-        title: "Community engagement",
-        body: `Your most-liked post has ${bestPost.likeCount.toLocaleString()} likes.`,
-        icon: Heart,
-      });
-    } else {
-      cards.push({
-        title: "Community",
-        body: "Post updates on Community so your audience can engage and like your content.",
-        icon: MessageCircle,
-      });
-    }
-
-    if (reviews.length > 0 && stats.avgRating >= 4) {
-      cards.push({
-        title: "Customer sentiment",
-        body: `Strong average rating of ${stats.avgRating.toFixed(1)} across ${reviews.length} review${reviews.length === 1 ? "" : "s"}.`,
-        icon: Star,
-      });
-    }
-
-    return cards.slice(0, 4);
-  }, [viewTrend, popularProducts, products.length, topLikedPosts, reviews.length, stats.avgRating]);
+  const topLikedPostsWithLikes = useMemo(() => getTopLikedPostsWithLikes(topLikedPosts), [topLikedPosts]);
 
   const viewsChartConfig = {
     views: { label: "Views", color: "hsl(var(--primary))" },
@@ -267,51 +203,12 @@ const Dashboard = () => {
     }
   };
 
-  useLayoutEffect(() => {
-    if (!business?.id) return;
-    setViewSeriesLoading(true);
-  }, [business?.id, viewRange]);
+  const { viewSeries, viewSeriesLoading, viewSeriesError } = useProfileViewSeries({
+    businessId: business?.id,
+    viewRange,
+  });
 
-  useEffect(() => {
-    if (!business?.id) {
-      setViewSeries([]);
-      setViewSeriesError(null);
-      setViewSeriesLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await fetchProfileViewSeries(business.id, viewRange);
-        if (cancelled) return;
-        if (result.ok) {
-          setViewSeries(result.data);
-          setViewSeriesError(null);
-        } else {
-          setViewSeries([]);
-          setViewSeriesError(result.error);
-        }
-      } catch (e) {
-        console.error("Error loading view series:", e);
-        if (!cancelled) {
-          setViewSeries([]);
-          setViewSeriesError(toUserFacingError(e));
-        }
-      } finally {
-        if (!cancelled) setViewSeriesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [business?.id, viewRange]);
-
-  const statsData = [
-    { label: "Total Views", value: stats.views.toLocaleString(), change: "", icon: Eye },
-    { label: "Messages", value: stats.messages.toString(), change: "", icon: MessageCircle },
-    { label: "Favorites", value: stats.favorites.toString(), change: "", icon: Heart },
-    { label: "Avg Rating", value: stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A", change: "", icon: Star }
-  ];
+  const statsData = buildStatsData(stats);
 
   if (loading || loadingBusiness) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
@@ -541,15 +438,13 @@ const Dashboard = () => {
                     Most liked posts
                   </h4>
                   <p className="text-xs text-muted-foreground mb-3">From your Community posts</p>
-                  {topLikedPosts.filter((post) => post.likeCount > 0).length === 0 ? (
+                  {topLikedPostsWithLikes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No likes yet — share an update from Quick Actions to build engagement.
                     </p>
                   ) : (
                     <ul className="space-y-3">
-                      {topLikedPosts
-                        .filter((post) => post.likeCount > 0)
-                        .map((post) => (
+                      {topLikedPostsWithLikes.map((post) => (
                           <li key={post.id} className="text-sm border-b border-border/60 last:border-0 pb-3 last:pb-0">
                             <div className="flex items-center justify-between gap-2 mb-1">
                               <span className="text-muted-foreground text-xs">
